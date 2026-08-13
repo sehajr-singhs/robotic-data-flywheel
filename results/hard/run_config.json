@@ -1,0 +1,27 @@
+{
+  "config": {
+    "seed_demos": 80,
+    "expert_noise": 0.12,
+    "collect_per_iter": 40,
+    "eval_starts": 100,
+    "iterations": 3,
+    "seeds": 3,
+    "epochs": 150,
+    "lr": 0.001,
+    "hidden": 96,
+    "horizon": 80,
+    "seed": 0,
+    "oracle_noise": 0.0,
+    "success_radius": 0.05,
+    "target_ring": [
+      0.1,
+      0.22
+    ],
+    "strategies": [
+      "none",
+      "success_only"
+    ]
+  },
+  "seed_expert_success_rate": 0.9875,
+  "report_strategy": "relabel_curated"
+}

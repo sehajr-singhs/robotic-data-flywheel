@@ -20,14 +20,14 @@ and I built the smallest faithful experiment of it: a fully reproducible
 flywheel where the only variable is how deployment data gets curated.
 
 The one-line result: **the curation rule decides whether the loop
-compounds.** On a planar push task (numpy-only, ~10 min on a laptop), a
-behavior-cloned policy stays flat at 17% with no feedback, climbs to 33%
-by self-curating its own successes, and more than triples to 47% when
+compounds.** On a planar push task (numpy-only, ~30 min on a laptop), a
+behavior-cloned policy stays flat at 17% with no feedback, climbs to 38%
+by self-curating its own successes, and more than triples to 60% when
 deployment failures are relabeled by an oracle (DAgger-style). Curated
 relabeling — scoring failures by how close they came before deciding to
-label — matches blind relabeling within error bars at **~40% fewer oracle
-queries**, which is the teleoperation-cost model industrial cells actually
-face.
+label — reaches 43% with **half the oracle queries** (7.5k vs 16.8k), and
+degrades less under labeling noise (13% vs 20% loss), which is the
+teleoperation-cost model industrial cells actually face.
 
 - IEEE-format paper: [link to manuscript.pdf]
 - Repo: [link — github.com/you/robotic-data-flywheel]

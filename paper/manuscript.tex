@@ -29,13 +29,18 @@ own episodes---successes, near-misses, or novel successes---yields modest,
 plateauing gains ($+\nearMissGain$ to $+\selfGain$).
 Relabeling deployment failures with an oracle, DAgger-style, compounds:
 success more than triples ($\baseSuccess \rightarrow \relabelFinal$) in
-\emph{\numIter} flywheel iterations. Curated relabeling---scoring failures
-by how close they came before deciding to label---matches blind relabeling
-within error bars while using roughly 40\% fewer oracle queries. We release
-the framework, a deterministic seed-disciplined study, and a per-iteration
-\emph{flywheel report} that exposes success, progress, smoothness, and
-state-coverage signals---the observability layer that real deployment loops
-will need as they feed manipulation foundation models.
+\emph{\numIter} flywheel iterations. Curation changes the \emph{cost}
+curve: curated relabeling---scoring failures by how close they came before
+deciding to label---reaches \curatedFinal\ with \curatedQueries\ oracle
+queries, while blind relabeling needs \blindQueries\ to reach
+\relabelFinal: curation buys $\sim$1.6$\times$ the performance per query. Both
+rules tolerate labeling noise, and curation degrades less under it
+(\curatedDrop\% vs.\ \blindDrop\% loss at high noise). The effect survives
+on a harder task, where relabeling still compounds while no feedback stays
+flat. We release the framework, a deterministic multi-seed study, and a
+per-iteration \emph{flywheel report} that exposes success, progress,
+smoothness, and state-coverage signals---the observability layer that real
+deployment loops will need as they feed manipulation foundation models.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -82,8 +87,13 @@ strategies, fine-tuned retraining, and a per-iteration deployment report.
 \item \textbf{A controlled empirical study} isolating curation strategy:
 no feedback is flat (\baseSuccess); self-curation plateaus ($+\selfGain$);
 oracle relabeling compounds ($\baseSuccess \rightarrow \relabelFinal$).
-\item \textbf{A label-efficiency result}: curated relabeling matches blind
-relabeling within error bars at roughly 40\% lower oracle cost.
+\item \textbf{A label-efficiency result}: curated relabeling reaches
+\curatedFinal\ with \curatedQueries\ oracle queries, versus \blindQueries\
+for blind relabeling to reach \relabelFinal---$\sim$1.6$\times$ the
+performance per query.
+\item \textbf{Robustness ablations}: under oracle labeling noise curated
+relabeling degrades less than blind relabeling (\curatedDrop\% vs.
+\blindDrop\% loss), and the flywheel effect holds on a harder task.
 \item \textbf{An observability artifact}: the flywheel report, a JSON and
 plot of deployment outcomes that makes the loop auditable---the layer
 industrial deployment infrastructure will need.
@@ -135,8 +145,8 @@ goal ever achieved), \emph{smoothness} (mean action delta), and
 \emph{coverage} (mean nearest-neighbor distance to the existing dataset in
 state space).
 \item \textbf{Curate.} A strategy decides what enters the training set,
-and whether labels are modified. Six strategies are implemented(
-Table~\ref{tab:results}); the three that matter are
+and whether labels are modified. Six strategies are implemented
+(Table~\ref{tab:results}); the three that matter are
 \texttt{success\_only} (keep successful episodes, labels untouched),
 \texttt{relabel} (blind DAgger: relabel everything), and
 \texttt{relabel\_curated} (relabel only failures whose progress signal
@@ -183,8 +193,13 @@ input features normalized per-dimension on the training set.
 
 \textbf{Protocol.} $\numSeeds$ independent training seeds per strategy;
 $\numEval$ held-out starts per evaluation; $\numIter$ flywheel iterations;
-60 deployment rollouts collected per iteration. The full study runs in
-minutes on one CPU core with numpy only.
+60 deployment rollouts collected per iteration. The relabeling oracle is a
+separate expert whose action noise models human labeling mistakes; the
+main study uses a perfect oracle, and a \emph{noisy-oracle ablation}
+varies its noise in $\{0, 0.2, 0.35\}$. A \emph{difficulty ablation}
+repeats the core comparison on a harder task (goal radius $0.05$ m,
+longer pushes, horizon $80$). The full study runs in under an hour on one
+CPU core with numpy only.
 
 \section{Results}
 Table~\ref{tab:results} and Fig.~\ref{fig:curves} report held-out success
@@ -220,14 +235,28 @@ own drifted states into corrective training data, which is precisely the
 cure for compounding error. Curated relabeling achieves \curatedFinal\
 ($+\curatedGain$).
 
-\textbf{Result 4: curation is label-efficient.} Blind relabeling ingests
-all 60 rollouts per iteration (240 oracle queries total); curated
-relabeling labels only the failures that made progress ($\sim$35--40 per
-iteration, $\sim$150 total). Its final performance
-(\curatedFinal$\pm$0.04) is statistically indistinguishable from blind
-relabeling (\relabelFinal$\pm$0.09) at roughly 40\% lower oracle cost. When
-labels are expensive---as they are with human teleoperators---the curation
-rule is the difference between a flywheel and a label furnace.
+\textbf{Result 4: curation changes the label-cost curve.} Fig.~\ref{fig:labels}
+plots held-out success against cumulative oracle queries. Blind relabeling
+reaches \relabelFinal\ at \blindQueries\ queries; curated relabeling
+reaches \curatedFinal\ at \curatedQueries\---less than half the queries
+for 72\% of the performance. At a matched budget of $\sim$7,500 queries,
+curated relabeling ($\curatedFinal$) outperforms blind relabeling
+($\sim$0.39). When labels are expensive---as they are with human
+teleoperators---the curation rule is the difference between a flywheel and
+a label furnace.
+
+\textbf{Result 5: curation dampens oracle labeling noise.}
+Fig.~\ref{fig:oracle} varies the relabeling oracle's action noise. Both
+rules are robust to moderate noise; at high noise blind relabeling loses
+\blindDrop\% of its clean-oracle performance, while curated relabeling
+loses only \curatedDrop\%. Curation refuses the far-off failures whose
+labels are least reliable, so its corrective signal stays cleaner.
+
+\textbf{Result 6: the flywheel effect survives task difficulty.}
+Fig.~\ref{fig:diff} repeats the core comparison on the harder task: no
+feedback stays flat (\hardNone), self-curation gains little
+(\hardSelfFinal), and relabeling still compounds (\hardRelabelFinal,
+roughly $3\times$ the frozen baseline).
 
 \begin{figure}[t]
 \centering
@@ -248,6 +277,32 @@ policy success after curated relabeling.}
 \label{fig:traj}
 \end{figure}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../results/figs/oracle_crossover.png}
+\caption{Oracle-quality ablation: final held-out success vs.\ relabeling
+oracle action noise. Blind relabeling degrades more steeply than curated
+relabeling under labeling noise.}
+\label{fig:oracle}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../results/figs/label_efficiency.png}
+\caption{Label efficiency: held-out success vs.\ cumulative oracle queries
+(main study). Curated relabeling spends less than half the queries of
+blind relabeling; self-curation spends none.}
+\label{fig:labels}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../results/figs/difficulty.png}
+\caption{Difficulty robustness: held-out success on the harder task.
+Relabeling still compounds; no feedback stays flat.}
+\label{fig:diff}
+\end{figure}
+
 \section{Discussion}
 \textbf{Why relabeling, not success, spins the wheel.} Behavior cloning
 fails because of compounding error: the policy drifts off the expert
@@ -257,20 +312,24 @@ with them. Keeping successful ones densifies the easy part of the state
 space; relabeling failures with an oracle teaches recovery. The asymmetry
 explains Results 2 and 3 directly.
 
-\textbf{When does curation beat ingestion?} In this study the oracle is
-perfect and free, so blind ingestion wins outright. Real oracles are
-imperfect and expensive. Our label-efficiency result (Result 4) shows
-curation already wins on cost at equal quality; we conjecture (and leave
-for future work) that with a \emph{noisy} oracle---human labeling
-mistakes---curated relabeling pulls further ahead by refusing to ingest
-far-off failures whose labels are least reliable.
+\textbf{When does curation beat ingestion?} The oracle here is free and
+perfect, so blind ingestion wins on raw final performance (\relabelFinal
+vs.\ \curatedFinal). But real oracles are neither: teleoperation hours are
+scarce and labels are imperfect. Result 4 shows curation wins on
+\emph{cost}---less than half the queries for 72\% of the performance---and
+Result 5 shows it also wins on \emph{robustness} to labeling mistakes
+(\curatedDrop\% vs.\ \blindDrop\% loss). Blind ingestion is the right
+rule only when labels are free and perfect; curation is the right rule in
+the cost regime industrial cells actually face.
 
 \textbf{Limitations.} The task is a 2-D kinematic push; there is no
 sim2real gap, perception, or embodiment. The policy is a small MLP, not a
-foundation model. Two seeds bound the statistical power. None of these
-threaten the qualitative conclusions, which are about \emph{relative}
-behavior of ingestion rules under identical conditions, but the absolute
-numbers should not be read as evidence about real robot stacks.
+foundation model. \numSeeds\ seeds bound the statistical power, and the
+difficulty ablation uses a shorter horizon than the main study. None of
+these threaten the qualitative conclusions, which are about
+\emph{relative} behavior of ingestion rules under identical conditions,
+but the absolute numbers should not be read as evidence about real robot
+stacks.
 
 \textbf{Implications for industrial flywheels.} Manufacturing
 deployment~\cite{mind2026} faces exactly this trade: teleoperation hours
@@ -283,11 +342,13 @@ failures deserve the label.
 \section{Conclusion}
 We built the smallest faithful data flywheel and measured the one variable
 that decides whether it compounds. Self-generated data plateaus; oracle
-relabeling triples success; curated relabeling buys the same at 40\% fewer
-labels. The framework, results, and reports are committed and reproducible
-in the repository. Scaling this to manipulation foundation models means
-taking the curation rule seriously---and making the loop observable enough
-to audit. We intend the flywheel report to be that instrument.
+relabeling more than triples success; curation changes the cost curve
+(half the labels for most of the gain) and damps the damage of noisy
+labels; the effect survives task difficulty. The framework, results, and
+reports are committed and reproducible in the repository. Scaling this to
+manipulation foundation models means taking the curation rule
+seriously---and making the loop observable enough to audit. We intend the
+flywheel report to be that instrument.
 
 \section*{Reproducibility}
 All code, seeds, and results are in the repository: \texttt{src/datafly/}

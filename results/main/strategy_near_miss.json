@@ -1,32 +1,52 @@
 {
   "success_rate_mean": [
-    0.1667,
-    0.2042,
-    0.225,
-    0.2708,
-    0.25
+    0.1687,
+    0.2513,
+    0.26,
+    0.315,
+    0.2988,
+    0.325
   ],
   "success_rate_std": [
-    0.0333,
-    0.0375,
-    0.0,
-    0.0042,
-    0.0333
+    0.0628,
+    0.0592,
+    0.0215,
+    0.0337,
+    0.039,
+    0.0379
   ],
   "success_rate_seeds": [
     [
-      0.2,
-      0.1667,
-      0.225,
+      0.245,
+      0.195,
       0.275,
-      0.2833
+      0.31,
+      0.305,
+      0.29
     ],
     [
-      0.1333,
-      0.2417,
+      0.12,
+      0.2,
       0.225,
-      0.2667,
-      0.2167
+      0.27,
+      0.235,
+      0.285
+    ],
+    [
+      0.215,
+      0.27,
+      0.26,
+      0.315,
+      0.315,
+      0.355
+    ],
+    [
+      0.095,
+      0.34,
+      0.28,
+      0.365,
+      0.34,
+      0.37
     ]
   ],
   "curation_log": [
@@ -35,6 +55,8 @@
       "n_rollouts": 60,
       "n_success": 13,
       "n_curated": 20,
+      "n_relabeled": 0,
+      "oracle_queries": 0,
       "dataset_frames": 3199,
       "rollout_success_rate": 0.21666666666666667
     },
@@ -43,6 +65,8 @@
       "n_rollouts": 60,
       "n_success": 11,
       "n_curated": 28,
+      "n_relabeled": 0,
+      "oracle_queries": 0,
       "dataset_frames": 5159,
       "rollout_success_rate": 0.18333333333333332
     },
@@ -51,6 +75,8 @@
       "n_rollouts": 60,
       "n_success": 15,
       "n_curated": 22,
+      "n_relabeled": 0,
+      "oracle_queries": 0,
       "dataset_frames": 6699,
       "rollout_success_rate": 0.25
     },
@@ -59,8 +85,20 @@
       "n_rollouts": 60,
       "n_success": 16,
       "n_curated": 27,
+      "n_relabeled": 0,
+      "oracle_queries": 0,
       "dataset_frames": 8589,
       "rollout_success_rate": 0.26666666666666666
+    },
+    {
+      "iteration": 5,
+      "n_rollouts": 60,
+      "n_success": 19,
+      "n_curated": 17,
+      "n_relabeled": 0,
+      "oracle_queries": 0,
+      "dataset_frames": 9779,
+      "rollout_success_rate": 0.31666666666666665
     }
   ]
 }

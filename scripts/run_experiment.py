@@ -31,6 +31,11 @@ def main() -> None:
     ap.add_argument("--seeds", type=int)
     ap.add_argument("--seed", type=int)
     ap.add_argument("--expert-noise", type=float)
+    ap.add_argument("--oracle-noise", type=float)
+    ap.add_argument("--success-radius", type=float)
+    ap.add_argument("--target-ring", nargs=2, type=float, default=None,
+                    metavar=("RMIN", "RMAX"))
+    ap.add_argument("--horizon", type=int)
     ap.add_argument("--strategies", nargs="+", default=None)
     ap.add_argument("--out-dir", default="results")
     ap.add_argument("--report-strategy", default="relabel_curated")
@@ -38,8 +43,11 @@ def main() -> None:
 
     cfg = FlywheelConfig(out_dir=args.out_dir, report_strategy=args.report_strategy)
     for k, v in vars(args).items():
-        if v is not None and k not in ("quick", "out_dir", "report_strategy", "strategies"):
+        if v is not None and k not in ("quick", "out_dir", "report_strategy", "strategies",
+                                       "target_ring"):
             setattr(cfg, k, v)
+    if args.target_ring:
+        cfg.target_ring = tuple(args.target_ring)
     if args.strategies:
         cfg.strategies = tuple(args.strategies)
     if args.quick:

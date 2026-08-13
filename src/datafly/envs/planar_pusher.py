@@ -105,9 +105,13 @@ class PlanarPusher:
         horizon: int = DEFAULT_HORIZON,
         dt: float = DT,
         rng: Optional[np.random.Generator] = None,
+        success_radius: float = SUCCESS_RADIUS,
+        target_ring: tuple[float, float] = (0.08, 0.18),
     ):
         self.horizon = horizon
         self.dt = dt
+        self.success_radius = success_radius
+        self.target_ring = target_ring
         self.rng = rng if rng is not None else np.random.default_rng(seed)
         self.t = 0
         self.obs: Optional[Obs] = None
@@ -128,11 +132,12 @@ class PlanarPusher:
         # the target must lie on the far side of the block from the arm base
         # (a block cannot be pulled toward the base by pushing). Rejection-
         # sample until the push direction points outward.
+        r_min, r_max = self.target_ring
         best = None
         best_out = -np.inf
         for _ in range(500):
             ang = self.rng.uniform(0.0, 2 * np.pi)
-            rad = self.rng.uniform(0.08, 0.18)
+            rad = self.rng.uniform(r_min, r_max)
             target = block + rad * np.array([np.cos(ang), np.sin(ang)])
             target[0] = np.clip(target[0], 0.15, 0.75)
             target[1] = np.clip(target[1], -0.30, 0.30)
@@ -202,7 +207,7 @@ class PlanarPusher:
         block_new = o.block + dblock_new * self.dt
 
         # --- goal check ------------------------------------------------ #
-        in_goal = np.linalg.norm(block_new - o.target) < SUCCESS_RADIUS
+        in_goal = np.linalg.norm(block_new - o.target) < self.success_radius
         self.in_goal_steps = self.in_goal_steps + 1 if in_goal else 0
 
         self.obs = Obs(

@@ -28,9 +28,18 @@ def main() -> None:
     ap.add_argument("--out-dir", default="paper/generated")
     args = ap.parse_args()
 
-    summary = json.loads((Path(args.results_dir) / "summary.json").read_text())
+    res_dir = Path(args.results_dir)
+    summary_path = res_dir / "summary.json"
+    if not summary_path.exists():
+        summary_path = res_dir / "main" / "summary.json"  # study lives in results/main/
+    summary = json.loads(summary_path.read_text())
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
+
+    abl = None
+    abl_path = res_dir / "ablations.json"
+    if abl_path.exists():
+        abl = json.loads(abl_path.read_text())
 
     strategies = summary["strategies"]
     iters = list(range(summary["config"]["iterations"] + 1))
@@ -74,12 +83,13 @@ def main() -> None:
     def num_std(name: str, i: int) -> float:
         return strategies[name]["success_rate_std"][i]
 
+    LAST = -1  # final flywheel iteration
     base = num("none", 0)
-    rel_final = num("relabel", 4)
-    cur_final = num("relabel_curated", 4)
-    so_final = num("success_only", 4)
-    nm_final = num("near_miss", 4)
-    sc_final = num("success_coverage", 4)
+    rel_final = num("relabel", LAST)
+    cur_final = num("relabel_curated", LAST)
+    so_final = num("success_only", LAST)
+    nm_final = num("near_miss", LAST)
+    sc_final = num("success_coverage", LAST)
     rel_gain = rel_final - num("relabel", 0)
     cur_gain = cur_final - num("relabel_curated", 0)
     so_gain = so_final - num("success_only", 0)
@@ -103,6 +113,26 @@ def main() -> None:
         f"\\newcommand{{\\numEval}}{{{summary['config']['eval_starts']}}}",
         f"\\newcommand{{\\numIter}}{{{summary['config']['iterations']}}}",
     ]
+    if abl:
+        oc = abl["oracle_crossover"]
+        le = abl["label_efficiency"]
+        df = abl["difficulty"]
+        macros += [
+            "%% oracle-quality ablation (results/oracle/)",
+            f"\\newcommand{{\\blindClean}}{{{oc['relabel'][0]:.2f}}}",
+            f"\\newcommand{{\\curatedClean}}{{{oc['relabel_curated'][0]:.2f}}}",
+            f"\\newcommand{{\\blindHigh}}{{{oc['relabel'][2]:.2f}}}",
+            f"\\newcommand{{\\curatedHigh}}{{{oc['relabel_curated'][2]:.2f}}}",
+            f"\\newcommand{{\\blindDrop}}{{{100 * (oc['relabel'][0] - oc['relabel'][2]) / oc['relabel'][0]:.0f}}}",
+            f"\\newcommand{{\\curatedDrop}}{{{100 * (oc['relabel_curated'][0] - oc['relabel_curated'][2]) / oc['relabel_curated'][0]:.0f}}}",
+            "%% label-efficiency ablation (results/main/)",
+            f"\\newcommand{{\\blindQueries}}{{{le['relabel']['queries'][-1]:,}}}",
+            f"\\newcommand{{\\curatedQueries}}{{{le['relabel_curated']['queries'][-1]:,}}}",
+            "%% difficulty robustness (results/hard/)",
+            f"\\newcommand{{\\hardNone}}{{{df['none'][0]:.2f}}}",
+            f"\\newcommand{{\\hardRelabelFinal}}{{{df['relabel'][-1]:.2f}}}",
+            f"\\newcommand{{\\hardSelfFinal}}{{{df['success_only'][-1]:.2f}}}",
+        ]
     (out / "numbers.tex").write_text("\n".join(macros) + "\n")
 
     print(f"wrote {out / 'results_table.tex'} and {out / 'numbers.tex'}")

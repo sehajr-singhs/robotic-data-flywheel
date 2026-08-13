@@ -39,19 +39,22 @@ DEFAULT_STRATEGIES = (
 
 @dataclass
 class FlywheelConfig:
-    seed_demos: int = 60
+    seed_demos: int = 80
     expert_noise: float = 0.12
-    collect_per_iter: int = 50
-    eval_starts: int = 60
-    iterations: int = 4
+    collect_per_iter: int = 60
+    eval_starts: int = 200
+    iterations: int = 5
     strategies: tuple[str, ...] = DEFAULT_STRATEGIES
-    seeds: int = 2               # independent training seeds, results averaged
+    seeds: int = 4               # independent training seeds, results averaged
     epochs: int = 150            # BC epochs for the seed model
     finetune_epochs: int = 50    # per-iteration fine-tuning epochs (flywheel)
     lr: float = 1e-3
     hidden: int = 96
     horizon: int = 70
     seed: int = 0
+    oracle_noise: float = 0.0    # noise on the *relabeling* oracle (human-label error)
+    success_radius: float = 0.07  # task difficulty: goal tolerance
+    target_ring: tuple[float, float] = (0.08, 0.18)  # task difficulty: push distance
     report_strategy: str = "relabel_curated"
     out_dir: str = "results"
     verbose: bool = True
@@ -68,6 +71,7 @@ class FlywheelConfig:
             epochs=30,
             lr=self.lr,
             hidden=64,
+            seeds=2,
             horizon=self.horizon,
             seed=self.seed,
             report_strategy=self.report_strategy,
@@ -81,8 +85,12 @@ def _dataset_states(dataset: list) -> np.ndarray:
 
 
 def run_flywheel(cfg: FlywheelConfig) -> dict:
-    env = PlanarPusher(seed=cfg.seed, horizon=cfg.horizon)
+    env = PlanarPusher(seed=cfg.seed, horizon=cfg.horizon,
+                       success_radius=cfg.success_radius, target_ring=cfg.target_ring)
     expert = ScriptedExpert(noise=cfg.expert_noise, rng=np.random.default_rng(cfg.seed + 7))
+    # The *relabeling* oracle is a separate expert so its quality (labeling
+    # noise, the human-teleoperator analogue) can be varied independently.
+    oracle = ScriptedExpert(noise=cfg.oracle_noise, rng=np.random.default_rng(cfg.seed + 17))
 
     # --- seed data: noisy expert demonstrations ---------------------- #
     seed_rng = np.random.default_rng(cfg.seed + 1)
@@ -112,6 +120,9 @@ def run_flywheel(cfg: FlywheelConfig) -> dict:
             "hidden": cfg.hidden,
             "horizon": cfg.horizon,
             "seed": cfg.seed,
+            "oracle_noise": cfg.oracle_noise,
+            "success_radius": cfg.success_radius,
+            "target_ring": list(cfg.target_ring),
             "strategies": list(cfg.strategies),
         },
         "seed_expert_success_rate": float(np.mean([d.success for d in seed_demos])),
@@ -144,7 +155,7 @@ def run_flywheel(cfg: FlywheelConfig) -> dict:
                     act_fn=policy.act, source="policy", seed_base=it * 1000,
                 )
                 db = _dataset_states(dataset)
-                curated = STRATEGIES[name](rollouts, expert=expert, dataset_states=db)
+                curated = STRATEGIES[name](rollouts, expert=oracle, dataset_states=db)
                 dataset.extend(curated)
 
                 # Flywheel update: fine-tune from the previous policy rather
@@ -164,6 +175,8 @@ def run_flywheel(cfg: FlywheelConfig) -> dict:
                         "n_rollouts": len(rollouts),
                         "n_success": int(sum(r.success for r in rollouts)),
                         "n_curated": len(curated),
+                        "n_relabeled": int(sum(t.source == "relabeled" for t in curated)),
+                        "oracle_queries": int(sum(len(t) for t in curated if t.source == "relabeled")),
                         "dataset_frames": sum(len(t) for t in dataset),
                         "rollout_success_rate": float(np.mean([r.success for r in rollouts])),
                     })

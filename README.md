@@ -32,17 +32,17 @@ hand-typed.
 
 ## The core result
 
-Held-out push success (mean ± std over 2 training seeds, 120 held-out
-starts) as the flywheel turns:
+Held-out push success (mean over 4 training seeds, 200 held-out starts per
+evaluation) as the flywheel turns:
 
-| strategy | iter 0 | iter 4 | Δ |
+| strategy | iter 0 | iter 5 | Δ |
 |---|---|---|---|
 | none (frozen) | 0.17 | 0.17 | — |
-| self: successes | 0.19 | 0.33 | +0.13 |
-| self: near-misses | 0.17 | 0.25 | +0.08 |
-| self: novel successes | 0.14 | 0.23 | +0.09 |
-| **oracle: curated relabel** | **0.18** | **0.45** | **+0.27** |
-| **oracle: relabel all (DAgger)** | **0.15** | **0.47** | **+0.32** |
+| self: successes | 0.20 | 0.38 | +0.18 |
+| self: near-misses | 0.17 | 0.33 | +0.16 |
+| self: novel successes | 0.17 | 0.38 | +0.21 |
+| **oracle: curated relabel** | **0.17** | **0.43** | **+0.26** |
+| **oracle: relabel all (DAgger)** | **0.17** | **0.60** | **+0.43** |
 
 Three findings:
 
@@ -52,9 +52,21 @@ Three findings:
    successful episodes densify what it already does; they cannot repair
    what it does badly.
 3. **Relabeling deployment failures ⇒ the flywheel compounds.** Oracle
-   relabeling (DAgger-style) more than triples success. Curated relabeling —
-   labeling only the failures that came close — matches blind relabeling
-   within error bars while using **~40% fewer oracle queries**.
+   relabeling (DAgger-style) more than triples success
+   (0.17 → 0.60).
+
+### Ablations (see `results/ablations.json`, `scripts/analyze.py`)
+
+- **Label efficiency.** Curated relabeling reaches 0.43 with **7,490**
+  oracle queries; blind relabeling needs **16,773** to reach 0.60 —
+  curation buys ~1.6× the performance per query, and wins at any matched
+  budget below the blind-relabel ceiling.
+- **Oracle quality.** With a noisy relabeling oracle (human-label
+  mistakes), blind relabeling loses 20% of its clean-oracle performance;
+  curated relabeling loses only 13% — curation dampens label noise.
+- **Difficulty.** On a harder task (tighter goal, longer pushes), the
+  flywheel still compounds: relabeling 0.09 → 0.26 while no feedback stays
+  flat at 0.09.
 
 The mechanism is compounding error: BC policies drift off the expert
 trajectory, and no amount of expert data fixes states the policy has never
@@ -92,9 +104,10 @@ vision-language-action model and the loop machinery is unchanged.
 # numpy-only core (torch optional, for swapping in bigger policies)
 pip install -r requirements.txt
 
-# full study (all 6 strategies × 4 iterations × 2 seeds, ~8 min on one CPU core)
+# full study (6 strategies × 5 iterations × 4 seeds, ~30 min on one CPU core)
 PYTHONPATH=src OPENBLAS_NUM_THREADS=1 python scripts/run_experiment.py
-PYTHONPATH=src OPENBLAS_NUM_THREADS=1 python scripts/merge_results.py
+PYTHONPATH=src OPENBLAS_NUM_THREADS=1 python scripts/merge_results.py --out-dir results/main
+PYTHONPATH=src OPENBLAS_NUM_THREADS=1 python scripts/analyze.py
 
 # paper tables/numbers from results JSON (never hand-typed)
 PYTHONPATH=src python scripts/render_results.py
@@ -107,12 +120,21 @@ PYTHONPATH=src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest tests -q
 > single-threaded BLAS is ~100× faster for this workload's tiny matmuls, and
 > keeps results bit-for-bit reproducible.
 
-Reproduce the committed results exactly:
+Reproduce the committed results exactly (the heavy `relabel` strategies
+are run one per invocation so each stays under a 10-minute budget):
 
 ```bash
-PYTHONPATH=src OPENBLAS_NUM_THREADS=1 python scripts/run_experiment.py \
-  --seed-demos 80 --collect-per-iter 60 --eval-starts 120 --iterations 4 \
-  --seeds 2 --epochs 150 --finetune-epochs 50
+# main comparison (6 strategies × 4 seeds × 5 iterations)
+for s in "none success_only" "near_miss" "relabel" "relabel_curated" "success_coverage"; do
+  PYTHONPATH=src OPENBLAS_NUM_THREADS=1 python scripts/run_experiment.py \
+    --strategies $s --out-dir results/main --seed-demos 80 --collect-per-iter 60 \
+    --eval-starts 200 --iterations 5 --seeds 4 --epochs 150 --finetune-epochs 50
+done
+PYTHONPATH=src OPENBLAS_NUM_THREADS=1 python scripts/merge_results.py --out-dir results/main
+
+# ablations
+PYTHONPATH=src OPENBLAS_NUM_THREADS=1 python scripts/analyze.py          # figures + ablations.json
+PYTHONPATH=src OPENBLAS_NUM_THREADS=1 python scripts/render_results.py    # paper tables/numbers
 ```
 
 ## Curation strategies
