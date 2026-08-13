@@ -29,9 +29,9 @@ label — reaches 43% with **half the oracle queries** (7.5k vs 16.8k), and
 degrades less under labeling noise (13% vs 20% loss), which is the
 teleoperation-cost model industrial cells actually face.
 
-- IEEE-format paper: [link to manuscript.pdf]
-- Repo: [link — github.com/you/robotic-data-flywheel]
-- Every number is committed as JSON; the study re-runs in minutes.
+- IEEE-format paper: github.com/sehajr-singhs/robotic-data-flywheel/blob/main/paper/manuscript.pdf
+- Repo: github.com/sehajr-singhs/robotic-data-flywheel
+- Every number is committed as JSON; the study re-runs in ~30 minutes on a laptop.
 
 I'd love to work on the data side of Mind Robotics' industrial deployment
 loops — collection, scoring, and curation for foundation-model training —
@@ -77,8 +77,8 @@ Sehaj
 
 ## Before you send
 
-- [ ] Put the repo on GitHub (it's currently a local repo) and make sure
-      the README renders.
+- [ ] Make sure the README renders on GitHub (the repo is live at
+      github.com/sehajr-singhs/robotic-data-flywheel).
 - [ ] Replace `sehaj@example.com` in `paper/manuscript.tex` with your real
       email, recompile, and re-render the paper.
 - [ ] Attach `paper/manuscript.pdf` (or link it in the repo).
