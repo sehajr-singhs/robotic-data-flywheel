@@ -1,0 +1,66 @@
+{
+  "success_rate_mean": [
+    0.1667,
+    0.1667,
+    0.1667,
+    0.1667,
+    0.1667
+  ],
+  "success_rate_std": [
+    0.0333,
+    0.0333,
+    0.0333,
+    0.0333,
+    0.0333
+  ],
+  "success_rate_seeds": [
+    [
+      0.2,
+      0.2,
+      0.2,
+      0.2,
+      0.2
+    ],
+    [
+      0.1333,
+      0.1333,
+      0.1333,
+      0.1333,
+      0.1333
+    ]
+  ],
+  "curation_log": [
+    {
+      "iteration": 1,
+      "n_rollouts": 60,
+      "n_success": 13,
+      "n_curated": 0,
+      "dataset_frames": 1799,
+      "rollout_success_rate": 0.21666666666666667
+    },
+    {
+      "iteration": 2,
+      "n_rollouts": 60,
+      "n_success": 14,
+      "n_curated": 0,
+      "dataset_frames": 1799,
+      "rollout_success_rate": 0.23333333333333334
+    },
+    {
+      "iteration": 3,
+      "n_rollouts": 60,
+      "n_success": 14,
+      "n_curated": 0,
+      "dataset_frames": 1799,
+      "rollout_success_rate": 0.23333333333333334
+    },
+    {
+      "iteration": 4,
+      "n_rollouts": 60,
+      "n_success": 8,
+      "n_curated": 0,
+      "dataset_frames": 1799,
+      "rollout_success_rate": 0.13333333333333333
+    }
+  ]
+}

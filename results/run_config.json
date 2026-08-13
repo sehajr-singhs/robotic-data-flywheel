@@ -1,0 +1,21 @@
+{
+  "config": {
+    "seed_demos": 80,
+    "expert_noise": 0.12,
+    "collect_per_iter": 60,
+    "eval_starts": 120,
+    "iterations": 4,
+    "seeds": 2,
+    "epochs": 150,
+    "lr": 0.001,
+    "hidden": 96,
+    "horizon": 70,
+    "seed": 0,
+    "strategies": [
+      "relabel_curated",
+      "success_coverage"
+    ]
+  },
+  "seed_expert_success_rate": 1.0,
+  "report_strategy": "relabel_curated"
+}

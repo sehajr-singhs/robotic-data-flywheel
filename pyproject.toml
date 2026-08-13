@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "datafly"
+version = "0.1.0"
+description = "A data flywheel framework for robot manipulation: closed-loop collection, scoring, curation, and policy improvement."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Sehaj" }]
+dependencies = [
+    "numpy>=1.26",
+    "matplotlib>=3.8",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+torch = ["torch>=2.1"]  # optional: swap in a torch policy/VLA instead of the numpy MLP
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
