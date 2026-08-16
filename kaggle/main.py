@@ -28,11 +28,12 @@ OUT = Path("/kaggle/working/results_v3")
 
 # The datafly package ships as a Kaggle dataset (always mounted, no
 # internet egress needed) — see kaggle/dataset-metadata.json.
-import tarfile  # noqa: E402
+import glob  # noqa: E402
 
-print("unpacking datafly from dataset ...", flush=True)
-tarfile.open("/kaggle/input/datafly-v3-src/src.tar").extractall("/kaggle/working")
-sys.path.insert(0, "/kaggle/working/src")
+cands = glob.glob("/kaggle/input/**/datafly/__init__.py", recursive=True)
+print("datafly package found at:", cands, flush=True)
+assert cands, "datafly package not mounted under /kaggle/input"
+sys.path.insert(0, os.path.dirname(os.path.dirname(cands[0])))
 
 import numpy as np  # noqa: E402
 

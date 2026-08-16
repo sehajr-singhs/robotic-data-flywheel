@@ -1,12 +1,12 @@
 {
-  "id": "sehajrsingh/datafly-v3-nmi-r4",
-  "title": "DataFly v3 NMI scale-up (r4)",
+  "id": "sehajrsingh/datafly-v3-vision-r5",
+  "title": "DataFly v3 vision ratio-control study (r5)",
   "code_file": "main.py",
   "language": "python",
   "kernel_type": "script",
   "is_private": true,
   "enable_gpu": true,
-  "enable_internet": true,
+  "enable_internet": false,
   "dataset_sources": ["sehajrsingh/datafly-v3-src"],
   "competition_sources": [],
   "kernel_sources": []

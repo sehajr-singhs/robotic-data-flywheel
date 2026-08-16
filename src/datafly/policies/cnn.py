@@ -82,11 +82,14 @@ def train_bc_image(
     init: Optional[CNNPolicy] = None,
     img_size: int = IMG_SIZE,
     verbose: bool = False,
+    policy_cls: type = CNNPolicy,
 ) -> CNNPolicy:
     """Behavior clone a CNN from (image, action) pairs; `init` fine-tunes.
 
     `init` continues from an existing policy's weights (flywheel fine-tuning),
-    matching the state-based `train_bc` contract.
+    matching the state-based `train_bc` contract. `policy_cls` lets studies
+    vary the architecture (e.g., a capacity-matched small CNN for the
+    capacity-ablation in the vision study).
     """
     import torch
     from torch import nn
@@ -94,10 +97,10 @@ def train_bc_image(
     imgs = np.concatenate([t.images for t in trjs], axis=0)
     acts = np.concatenate([t.actions for t in trjs], axis=0).astype(np.float32)
     if init is not None:
-        policy = CNNPolicy(img_size=img_size, hidden=init.hidden, seed=seed)
+        policy = policy_cls(img_size=img_size, hidden=init.hidden, seed=seed)
         policy.net.load_state_dict(init.net.state_dict())
     else:
-        policy = CNNPolicy(img_size=img_size, hidden=hidden, seed=seed)
+        policy = policy_cls(img_size=img_size, hidden=hidden, seed=seed)
 
     n = len(imgs)
     if n == 0:

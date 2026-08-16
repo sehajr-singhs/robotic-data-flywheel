@@ -18,6 +18,10 @@ relabel_plus_success: relabel failures, keep successful episodes as-is.
 relabel_curated     : relabel failures *only if they made progress* (the
                       deployment signal says they were close); skip failures
                       that never got anywhere. The thesis strategy.
+relabel_balanced    : relabel everything but *cap the frames added per
+                      iteration* at a fixed multiple of the current clean
+                      dataset (the relabeled:clean ratio is the controlling
+                      variable — high-capacity policies overfit a flood).
 success_coverage    : among successes, keep the most *novel* ones by state
                       coverage, capped at k per iteration.
 """
@@ -82,6 +86,37 @@ def relabel_plus_success(
     return out
 
 
+def relabel_balanced(
+    trajs: list[Trajectory],
+    expert: ScriptedExpert,
+    dataset_states: Optional[np.ndarray] = None,
+    **kwargs,
+) -> list[Trajectory]:
+    """Relabel everything, but cap added frames at a ratio of the current set.
+
+    Blind DAgger floods the training set: each iteration adds ~collect_per_iter
+    full rollouts (tens of thousands of frames), quickly overwhelming the
+    clean demonstrations. `relabel_balanced` relabels every rollout but keeps
+    at most `balance_ratio` x the *current* dataset size in new frames each
+    iteration (keeping the newest, i.e. the most recent rollouts — closest to
+    the current policy's distribution). This isolates the ratio as the
+    controlling variable.
+    """
+    ratio = kwargs.get("balance_ratio", 1.0)
+    if dataset_states is None:
+        return relabel(trajs, expert)
+    clean_frames = len(dataset_states)
+    keep = max(1, int(ratio * clean_frames))
+    out: list[Trajectory] = []
+    acc = 0
+    for t in trajs:  # newest rollouts first preserves policy-proximal data
+        if acc + len(t) > keep:
+            break
+        out.append(_relabel(t, expert))
+        acc += len(t)
+    return out
+
+
 def relabel_curated(
     trajs: list[Trajectory],
     expert: ScriptedExpert,
@@ -132,5 +167,6 @@ STRATEGIES: dict[str, Callable[..., list[Trajectory]]] = {
     "relabel": relabel,
     "relabel_plus_success": relabel_plus_success,
     "relabel_curated": relabel_curated,
+    "relabel_balanced": relabel_balanced,
     "success_coverage": success_coverage,
 }
