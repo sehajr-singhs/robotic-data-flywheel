@@ -21,3 +21,4 @@ paper/*.synctex.gz
 kaggle_out/
 kaggle_pull/
 kaggle_payload/
+.kaggle_output/
