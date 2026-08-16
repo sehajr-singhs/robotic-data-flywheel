@@ -60,6 +60,7 @@ def _relabel(t: Trajectory, expert: ScriptedExpert) -> Trajectory:
         steps=t.steps,
         seed=t.seed,
         source="relabeled",
+        images=t.images,  # pixels are preserved; only the *label* is replaced
     )
 
 

@@ -96,6 +96,78 @@ def state_vector(o: Obs) -> np.ndarray:
     ]).astype(np.float32)
 
 
+# --------------------------------------------------------------------- #
+# pixel rendering (the vision observation modality)                     #
+# --------------------------------------------------------------------- #
+IMG_SIZE = 64        # default render resolution (square)
+IMG_XMIN, IMG_XMAX = -0.15, 0.95   # world bounds shown in the image
+IMG_YMIN, IMG_YMAX = -0.55, 0.55
+BLOCK_R = 0.045      # block radius drawn in the image
+ARM_THICK = 0.022    # arm link half-thickness
+JOINT_R = 0.014
+TIP_R = 0.012
+
+_BG = np.array([0.96, 0.97, 0.98])
+_TARGET = np.array([0.13, 0.72, 0.34])
+_BLOCK = np.array([0.27, 0.20, 0.85])
+_ARM = np.array([0.12, 0.16, 0.22])
+_TIP = np.array([0.85, 0.16, 0.16])
+
+
+def _seg_dist_grid(px: np.ndarray, py: np.ndarray, a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Distance from every grid point (px, py) to segment a->b, vectorized."""
+    ab = b - a
+    denom = float(ab @ ab)
+    if denom < 1e-12:
+        return np.hypot(px - a[0], py - a[1])
+    t = np.clip(((px - a[0]) * ab[0] + (py - a[1]) * ab[1]) / denom, 0.0, 1.0)
+    return np.hypot(px - (a[0] + t * ab[0]), py - (a[1] + t * ab[1]))
+
+
+def _disc_mask(px, py, c: np.ndarray, r: float) -> np.ndarray:
+    return (px - c[0]) ** 2 + (py - c[1]) ** 2 <= r * r
+
+
+def render_obs(o: Obs, img_size: int = IMG_SIZE, success_radius: float = SUCCESS_RADIUS) -> np.ndarray:
+    """Rasterize the scene to an (img_size, img_size, 3) uint8 image.
+
+    A pure-numpy painter's algorithm: background, target disc, block disc,
+    arm links (with thickness), joints, fingertip. Deterministic given the
+    observation, so the image a policy sees during rollouts is exactly the
+    image recorded into the trajectory.
+    """
+    xs = np.linspace(IMG_XMIN, IMG_XMAX, img_size)
+    ys = np.linspace(IMG_YMAX, IMG_YMIN, img_size)  # flip so +y is up in the image
+    px, py = np.meshgrid(xs, ys)
+
+    img = np.empty((img_size, img_size, 3), dtype=np.float32)
+    img[:] = _BG
+
+    # target region (disc + ring edge)
+    m = _disc_mask(px, py, o.target, success_radius)
+    img[m] = _TARGET
+    ring = _disc_mask(px, py, o.target, success_radius + 0.015) & ~m
+    img[ring] = _TARGET * 0.55 + _BG * 0.45
+
+    # block
+    m = _disc_mask(px, py, o.block, BLOCK_R)
+    img[m] = _BLOCK
+
+    # arm links
+    elbow = np.array([L1 * np.cos(o.q[0]), L1 * np.sin(o.q[0])])
+    tip = o.tip
+    for a, b in [(np.zeros(2), elbow), (elbow, tip)]:
+        d = _seg_dist_grid(px, py, a, b)
+        img[d < ARM_THICK] = _ARM
+    # joints + fingertip
+    for c, r, col in [(np.zeros(2), JOINT_R, _ARM), (elbow, JOINT_R, _ARM),
+                      (tip, TIP_R, _TIP)]:
+        m = _disc_mask(px, py, c, r)
+        img[m] = col
+
+    return (np.clip(img, 0.0, 1.0) * 255.0).astype(np.uint8)
+
+
 class PlanarPusher:
     """The environment. Step with joint-velocity commands in [-1, 1]."""
 
@@ -107,17 +179,27 @@ class PlanarPusher:
         rng: Optional[np.random.Generator] = None,
         success_radius: float = SUCCESS_RADIUS,
         target_ring: tuple[float, float] = (0.08, 0.18),
+        record_images: bool = False,
+        img_size: int = IMG_SIZE,
     ):
         self.horizon = horizon
         self.dt = dt
         self.success_radius = success_radius
         self.target_ring = target_ring
         self.rng = rng if rng is not None else np.random.default_rng(seed)
+        self.record_images = record_images
+        self.img_size = img_size
         self.t = 0
         self.obs: Optional[Obs] = None
         self.in_goal_steps = 0
         self._traj_states: list[np.ndarray] = []
         self._traj_actions: list[np.ndarray] = []
+        self._traj_images: list[np.ndarray] = []
+
+    def render(self, obs: Optional[Obs] = None) -> np.ndarray:
+        """Pixel image of the current (or given) observation."""
+        return render_obs(obs if obs is not None else self.obs,
+                          img_size=self.img_size, success_radius=self.success_radius)
 
     # ------------------------------------------------------------------ #
     # sampling helpers (also used by the experiment harness)              #
@@ -175,6 +257,7 @@ class PlanarPusher:
         self.obs = obs if obs is not None else self.sample_start()
         self._traj_states = [state_vector(self.obs)]
         self._traj_actions = []
+        self._traj_images = [self.render()] if self.record_images else []
         return self.obs
 
     def step(self, action: np.ndarray) -> Obs:
@@ -221,6 +304,8 @@ class PlanarPusher:
         self.t += 1
         self._traj_states.append(state_vector(self.obs))
         self._traj_actions.append(a.copy())
+        if self.record_images:
+            self._traj_images.append(self.render())
         return self.obs
 
     @property
@@ -247,10 +332,16 @@ class PlanarPusher:
         actions = np.stack(self._traj_actions) if self._traj_actions else np.zeros((0, 2))
         if len(actions) and len(states) == len(actions) + 1:
             states = states[:-1]
-        return {
+        out = {
             "states": states,
             "actions": actions,
             "success": bool(self.success),
             "final_dist": self.final_dist,
             "steps": self.t,
         }
+        if self._traj_images:
+            imgs = np.stack(self._traj_images)
+            if len(actions) and len(imgs) == len(actions) + 1:
+                imgs = imgs[:-1]
+            out["images"] = imgs
+        return out

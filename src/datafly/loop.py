@@ -22,7 +22,7 @@ import numpy as np
 
 from .curation.scores import coverage, final_dist, progress, smoothness
 from .curation.strategies import STRATEGIES
-from .envs.planar_pusher import PlanarPusher
+from .envs.planar_pusher import IMG_SIZE, PlanarPusher
 from .eval import evaluate, make_eval_starts
 from .policies.expert import ScriptedExpert
 from .policies.mlp import collect_trajectories, train_bc
@@ -57,6 +57,8 @@ class FlywheelConfig:
     target_ring: tuple[float, float] = (0.08, 0.18)  # task difficulty: push distance
     report_strategy: str = "relabel_curated"
     out_dir: str = "results"
+    obs_mode: str = "state"      # "state" (numpy MLP) | "image" (torch CNN)
+    img_size: int = IMG_SIZE     # render resolution for obs_mode="image"
     verbose: bool = True
 
     def quick(self) -> "FlywheelConfig":
@@ -76,6 +78,8 @@ class FlywheelConfig:
             seed=self.seed,
             report_strategy=self.report_strategy,
             out_dir=self.out_dir,
+            obs_mode=self.obs_mode,
+            img_size=self.img_size,
             verbose=False,
         )
 
@@ -86,11 +90,26 @@ def _dataset_states(dataset: list) -> np.ndarray:
 
 def run_flywheel(cfg: FlywheelConfig) -> dict:
     env = PlanarPusher(seed=cfg.seed, horizon=cfg.horizon,
-                       success_radius=cfg.success_radius, target_ring=cfg.target_ring)
+                       success_radius=cfg.success_radius, target_ring=cfg.target_ring,
+                       record_images=cfg.obs_mode == "image", img_size=cfg.img_size)
     expert = ScriptedExpert(noise=cfg.expert_noise, rng=np.random.default_rng(cfg.seed + 7))
     # The *relabeling* oracle is a separate expert so its quality (labeling
     # noise, the human-teleoperator analogue) can be varied independently.
     oracle = ScriptedExpert(noise=cfg.oracle_noise, rng=np.random.default_rng(cfg.seed + 17))
+
+    # obs_mode picks both the policy trainer and what the policy consumes:
+    # the state vector (numpy MLP) or the raw pixels (torch CNN).
+    if cfg.obs_mode == "image":
+        from .policies.cnn import train_bc_image
+
+        def _train(dataset, *, hidden, epochs, lr, seed, init=None):
+            return train_bc_image(dataset, hidden=hidden, epochs=epochs, lr=lr,
+                                  seed=seed, init=init, img_size=cfg.img_size)
+
+        obs_fn = env.render
+    else:
+        _train = train_bc
+        obs_fn = None
 
     # --- seed data: noisy expert demonstrations ---------------------- #
     seed_rng = np.random.default_rng(cfg.seed + 1)
@@ -124,6 +143,8 @@ def run_flywheel(cfg: FlywheelConfig) -> dict:
             "success_radius": cfg.success_radius,
             "target_ring": list(cfg.target_ring),
             "strategies": list(cfg.strategies),
+            "obs_mode": cfg.obs_mode,
+            "img_size": cfg.img_size,
         },
         "seed_expert_success_rate": float(np.mean([d.success for d in seed_demos])),
         "strategies": {},
@@ -144,15 +165,16 @@ def run_flywheel(cfg: FlywheelConfig) -> dict:
                 act_fn=expert.act_from_state, source="expert",
             )
             dataset = list(s_demos)
-            policy = train_bc(dataset, hidden=cfg.hidden, epochs=cfg.epochs,
-                              lr=cfg.lr, seed=cfg.seed + si + s)
-            series = [evaluate(env, policy, eval_starts)["success_rate"]]
+            policy = _train(dataset, hidden=cfg.hidden, epochs=cfg.epochs,
+                            lr=cfg.lr, seed=cfg.seed + si + s)
+            series = [evaluate(env, policy, eval_starts, obs_fn=obs_fn)["success_rate"]]
 
             for it in range(1, cfg.iterations + 1):
                 roll_rng = np.random.default_rng(cfg.seed + 1000 * si + 100 * s + it)
                 rollouts = collect_trajectories(
                     env, policy, n=cfg.collect_per_iter, rng=roll_rng,
                     act_fn=policy.act, source="policy", seed_base=it * 1000,
+                    obs_fn=obs_fn,
                 )
                 db = _dataset_states(dataset)
                 curated = STRATEGIES[name](rollouts, expert=oracle, dataset_states=db)
@@ -163,11 +185,11 @@ def run_flywheel(cfg: FlywheelConfig) -> dict:
                 # update, keeping training time flat as data grows. The
                 # `none` strategy freezes the policy: no feedback, no update.
                 if name != "none":
-                    policy = train_bc(
+                    policy = _train(
                         dataset, hidden=cfg.hidden, epochs=cfg.finetune_epochs,
                         lr=cfg.lr, seed=cfg.seed + si + s, init=policy,
                     )
-                series.append(evaluate(env, policy, eval_starts)["success_rate"])
+                series.append(evaluate(env, policy, eval_starts, obs_fn=obs_fn)["success_rate"])
 
                 if s == 0:
                     curation_log.append({

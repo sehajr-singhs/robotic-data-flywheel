@@ -36,6 +36,8 @@ def main() -> None:
     ap.add_argument("--target-ring", nargs=2, type=float, default=None,
                     metavar=("RMIN", "RMAX"))
     ap.add_argument("--horizon", type=int)
+    ap.add_argument("--obs-mode", choices=["state", "image"], default=None)
+    ap.add_argument("--img-size", type=int)
     ap.add_argument("--strategies", nargs="+", default=None)
     ap.add_argument("--out-dir", default="results")
     ap.add_argument("--report-strategy", default="relabel_curated")

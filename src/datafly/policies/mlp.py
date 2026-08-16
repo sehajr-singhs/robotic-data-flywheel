@@ -32,6 +32,7 @@ class Trajectory:
     steps: int
     seed: int = 0
     source: str = "policy"      # "expert" | "policy" | "relabeled"
+    images: Optional[np.ndarray] = None  # (T, H, W, 3) uint8, if recorded
 
     def __len__(self) -> int:
         return len(self.states)
@@ -185,17 +186,23 @@ def collect_trajectories(
     source: str = "policy",
     seed_base: int = 0,
     horizon: Optional[int] = None,
+    obs_fn: Optional[Callable] = None,
 ) -> list[Trajectory]:
     """Roll out a policy (or any act_fn) from n fresh random starts.
 
     Each rollout is a standalone episode in the environment; the collection
     RNG is separate from the training RNG so the flywheel loop is
     reproducible iteration by iteration.
+
+    `obs_fn` maps an observation to what the policy consumes. Defaults to
+    the state vector; vision policies pass `env.render` (pixels).
     """
     if rng is None:
         rng = np.random.default_rng(0)
     if act_fn is None:
         act_fn = policy.act
+    if obs_fn is None:
+        obs_fn = state_vector
     horizon = horizon or env.horizon
 
     # The passed rng owns *start sampling*: the environment's own rng may
@@ -207,7 +214,7 @@ def collect_trajectories(
     for i in range(n):
         env.reset()
         while not env.done:
-            env.step(act_fn(state_vector(env.obs)))
+            env.step(act_fn(obs_fn(env.obs)))
         traj = env.trajectory()
         traj["seed"] = seed_base + i
         traj["source"] = source

@@ -20,17 +20,24 @@ def evaluate(
     starts: list[Obs],
     horizon: Optional[int] = None,
     act_fn: Optional[Callable] = None,
+    obs_fn: Optional[Callable] = None,
 ) -> dict:
-    """Return summary metrics over the fixed held-out start set."""
+    """Return summary metrics over the fixed held-out start set.
+
+    `obs_fn` maps an observation to what the policy consumes (state vector by
+    default; `env.render` for vision policies).
+    """
     if act_fn is None:
         act_fn = policy.act
+    if obs_fn is None:
+        obs_fn = state_vector
     horizon = horizon or env.horizon
 
     results = []
     for start in starts:
         env.reset(start)
         while not env.done:
-            env.step(act_fn(state_vector(env.obs)))
+            env.step(act_fn(obs_fn(env.obs)))
         results.append({
             "success": bool(env.success),
             "final_dist": env.final_dist,
