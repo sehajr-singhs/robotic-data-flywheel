@@ -1,0 +1,13 @@
+{
+  "id": "sehajrsingh/datafly-v3-nmi-r3",
+  "title": "DataFly v3 NMI scale-up (r3)",
+  "code_file": "main.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": ["sehajrsingh/datafly-v3-src"],
+  "competition_sources": [],
+  "kernel_sources": []
+}

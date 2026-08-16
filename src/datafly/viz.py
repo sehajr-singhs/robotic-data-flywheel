@@ -88,6 +88,66 @@ def plot_flywheel_report(report: dict, path: str | Path) -> None:
     plt.close(fig)
 
 
+def plot_budget_comparison(
+    summary: dict,
+    dqn: dict,
+    path: str | Path,
+    strategies: tuple[str, ...] = ("success_only", "relabel_curated", "relabel"),
+) -> None:
+    """Held-out success vs *environment interaction* for the flywheel vs DQN.
+
+    The x-axis is the one axis that matters for label efficiency: total
+    environment steps consumed for training data. The flywheel's interaction
+    at each iteration is the dataset frame count (seed demos + curated
+    rollouts, from the curation log); DQN reports its own step budget.
+    """
+    fig, ax = plt.subplots(figsize=(6.5, 4.2))
+
+    for name in strategies:
+        d = summary["strategies"][name]
+        log = d.get("curation_log", [])
+        if not log:
+            continue
+        # training interaction grows with the dataset; eval is measurement only
+        inter = [d["success_rate_mean"][0]] + [c["dataset_frames"] for c in log]
+        succ = d["success_rate_mean"]
+        color = COLORS.get(name, "#333333")
+        ax.plot(inter, succ, marker="o", lw=2, color=color,
+                label=f"flywheel · {name.replace('_', ' ')}")
+
+    if dqn:
+        steps = [e["env_steps"] for e in dqn["eval"]]
+        succ = [e["success_rate"] for e in dqn["eval"]]
+        ax.plot(steps, succ, marker="s", lw=2, color="#dc2626",
+                label="DQN from scratch (state, dense reward)")
+
+    ax.set_xscale("log")
+    ax.set_xlabel("environment interactions used for training")
+    ax.set_ylabel("held-out success rate")
+    ax.set_ylim(0.0, 1.0)
+    ax.legend(frameon=False, fontsize=8)
+    ax.grid(alpha=0.3, which="both")
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
+def plot_vision_curves(summary: dict, path: str | Path) -> None:
+    """Same success-curve plot, for a vision (pixel-observation) summary."""
+    plot_success_curves(summary, path)
+
+
+def plot_sample_images(env, starts: list, path: str | Path, n: int = 4) -> None:
+    """A montage of raw pixel observations — what the vision policy sees."""
+    fig, axes = plt.subplots(1, n, figsize=(3.2 * n, 3.2))
+    for ax, start in zip(axes, starts[:n]):
+        ax.imshow(env.render(start))
+        ax.set_xticks([]); ax.set_yticks([])
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
 def _draw_arm(ax, q: np.ndarray, **kw) -> None:
     elbow = L1 * np.array([np.cos(q[0]), np.sin(q[0])])
     tip = forward_kinematics(q)

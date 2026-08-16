@@ -31,6 +31,9 @@ def _last(series) -> float:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--results-dir", default="results")
+    ap.add_argument("--main-dir", default=None, help="v3 main study dir (results_v3/main)")
+    ap.add_argument("--vision-dir", default=None, help="v3 vision study dir (results_v3/vision)")
+    ap.add_argument("--dqn-file", default=None, help="v3 DQN baseline json")
     args = ap.parse_args()
     res = Path(args.results_dir)
     (res / "figs").mkdir(parents=True, exist_ok=True)
@@ -104,6 +107,31 @@ def main() -> None:
 
     (res / "ablations.json").write_text(json.dumps(out, indent=2))
     print("wrote results/ablations.json + results/figs/{oracle_crossover,label_efficiency,difficulty}.png")
+
+    # ---- v3: perception study + label-efficiency budget plot ------------- #
+    from datafly.viz import (plot_budget_comparison, plot_sample_images,
+                             plot_success_curves)
+
+    main_dir = Path(args.main_dir) if args.main_dir else res / "v3" / "main"
+    vis_dir = Path(args.vision_dir) if args.vision_dir else res / "v3" / "vision"
+    dqn_path = Path(args.dqn_file) if args.dqn_file else res / "v3" / "dqn" / "dqn.json"
+
+    if (main_dir / "summary.json").exists():
+        v3_main = json.loads((main_dir / "summary.json").read_text())
+        dqn = json.loads(dqn_path.read_text()) if dqn_path.exists() else {}
+        plot_budget_comparison(v3_main, dqn, res / "figs" / "budget_comparison.png")
+        print("wrote results/figs/budget_comparison.png (flywheel vs DQN)")
+    if (vis_dir / "summary.json").exists():
+        v3_vis = json.loads((vis_dir / "summary.json").read_text())
+        plot_success_curves(v3_vis, res / "figs" / "vision_curves.png")
+        # a few raw pixel observations the CNN sees
+        from datafly.envs.planar_pusher import PlanarPusher
+        from datafly.eval import make_eval_starts
+        env = PlanarPusher(seed=0, img_size=v3_vis["config"]["img_size"])
+        starts = make_eval_starts(env, 4, seed=1)
+        plot_sample_images(env, starts, res / "figs" / "sample_observations.png")
+        print("wrote results/figs/vision_curves.png + sample_observations.png")
+
     print(json.dumps(out, indent=2))
 
 

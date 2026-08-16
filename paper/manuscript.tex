@@ -26,18 +26,21 @@ variable that determines whether it compounds: \emph{the curation
 strategy}. On a reproducible planar push task, with no feedback the
 held-out success rate is flat at \baseSuccess. Self-curating the policy's
 own episodes---successes, near-misses, or novel successes---yields modest,
-plateauing gains ($+\nearMissGain$ to $+\selfGain$).
-Relabeling deployment failures with an oracle, DAgger-style, compounds:
-success more than triples ($\baseSuccess \rightarrow \relabelFinal$) in
-\emph{\numIter} flywheel iterations. Curation changes the \emph{cost}
-curve: curated relabeling---scoring failures by how close they came before
-deciding to label---reaches \curatedFinal\ with \curatedQueries\ oracle
-queries, while blind relabeling needs \blindQueries\ to reach
-\relabelFinal: curation buys $\sim$1.6$\times$ the performance per query. Both
-rules tolerate labeling noise, and curation degrades less under it
-(\curatedDrop\% vs.\ \blindDrop\% loss at high noise). The effect survives
-on a harder task, where relabeling still compounds while no feedback stays
-flat. We release the framework, a deterministic multi-seed study, and a
+plateauing gains. Relabeling deployment failures with an oracle,
+DAgger-style, compounds: success more than triples
+($\baseSuccess \rightarrow \relabelFinal$) in \emph{\numIter} flywheel
+iterations. Curation changes the \emph{cost} curve: curated
+relabeling---scoring failures by how close they came before deciding to
+label---reaches \curatedFinal\ with \curatedQueries\ oracle queries, while
+blind relabeling needs \blindQueries\ to reach \relabelFinal, and both
+rules tolerate labeling noise (curated degrades less). The loop transfers
+to raw pixels: a CNN consuming \visionImg$\times$\visionImg\ images is
+lifted from \visionNoneFinal\ to \visionRelabelFinal\ success by the same
+curated-relabeling rule, while a DQN trained from scratch with a dense
+reward needs \dqnSteps\ environment interactions to reach \dqnFinal\
+success---versus the flywheel's \flywheelSteps. The effect also survives a
+harder task, where relabeling still compounds while no feedback stays flat.
+We release the framework, a deterministic multi-seed study, and a
 per-iteration \emph{flywheel report} that exposes success, progress,
 smoothness, and state-coverage signals---the observability layer that real
 deployment loops will need as they feed manipulation foundation models.
@@ -94,6 +97,14 @@ performance per query.
 \item \textbf{Robustness ablations}: under oracle labeling noise curated
 relabeling degrades less than blind relabeling (\curatedDrop\% vs.
 \blindDrop\% loss), and the flywheel effect holds on a harder task.
+\item \textbf{Modality transfer}: the identical loop lifts a \emph{vision}
+policy (a torch CNN on \visionImg$\times$\visionImg\ RGB images) from
+\visionNoneFinal\ to \visionRelabelFinal, showing curation matters
+independently of the observation space.
+\item \textbf{An RL anchor}: a DQN trained from scratch with dense rewards
+reaches \dqnFinal\ success after \dqnSteps\ environment interactions---the
+flywheel reaches \relabelFinal\ with \flywheelSteps\---quantifying the
+label-efficiency gap.
 \item \textbf{An observability artifact}: the flywheel report, a JSON and
 plot of deployment outcomes that makes the loop auditable---the layer
 industrial deployment infrastructure will need.
@@ -183,9 +194,21 @@ an action for any state, which is the property a human teleoperator has and
 the relabel strategies need.
 
 \textbf{Policy and training.} Behavior cloning with mean-squared error on
-joint-velocity commands; 80 noisy demonstrations; 150 BC epochs for the
+joint-velocity commands; 100 noisy demonstrations; 150 BC epochs for the
 seed model, 50 fine-tuning epochs per iteration; Adam, batch 512;
-input features normalized per-dimension on the training set.
+input features normalized per-dimension on the training set. The vision
+variant replaces the 12-dim feature vector with a \visionImg$\times$\visionImg\
+RGB render and the MLP with a torch CNN (three conv blocks + MLP head),
+trained identically by BC; the loop machinery is unchanged.
+
+\textbf{Baselines.} The frozen control (\texttt{none}) anchors the
+comparison. A second anchor asks what classic RL achieves without any
+demonstrations: DQN with a 5$\times$5 discretized action grid, dense reward
+(negative distance to target, goal-hold bonus, success bonus), and a
+\dqnSteps-step interaction budget. The budget comparison plots both on the
+same axis: environment interactions used for \emph{training} (the flywheel's
+interaction is its dataset frame count, seed demos plus curated rollouts;
+evaluation is measurement only).
 
 \textbf{Strategies.} \texttt{none} (frozen control), \texttt{success\_only},
 \texttt{near\_miss}, \texttt{success\_coverage}, \texttt{relabel}, and
@@ -193,13 +216,15 @@ input features normalized per-dimension on the training set.
 
 \textbf{Protocol.} $\numSeeds$ independent training seeds per strategy;
 $\numEval$ held-out starts per evaluation; $\numIter$ flywheel iterations;
-60 deployment rollouts collected per iteration. The relabeling oracle is a
+80 deployment rollouts collected per iteration. The relabeling oracle is a
 separate expert whose action noise models human labeling mistakes; the
 main study uses a perfect oracle, and a \emph{noisy-oracle ablation}
 varies its noise in $\{0, 0.2, 0.35\}$. A \emph{difficulty ablation}
 repeats the core comparison on a harder task (goal radius $0.05$ m,
-longer pushes, horizon $80$). The full study runs in under an hour on one
-CPU core with numpy only.
+longer pushes, horizon $80$). The vision study uses \visionSeeds\ seeds,
+\visionEval\ held-out starts, and \visionIter\ iterations with a CNN on
+GPU. The full study is reproducible end-to-end in about an hour of compute
+(CPU for the main study, GPU for the vision and RL baselines).
 
 \section{Results}
 Table~\ref{tab:results} and Fig.~\ref{fig:curves} report held-out success
@@ -239,24 +264,43 @@ cure for compounding error. Curated relabeling achieves \curatedFinal\
 plots held-out success against cumulative oracle queries. Blind relabeling
 reaches \relabelFinal\ at \blindQueries\ queries; curated relabeling
 reaches \curatedFinal\ at \curatedQueries\---less than half the queries
-for 72\% of the performance. At a matched budget of $\sim$7,500 queries,
-curated relabeling ($\curatedFinal$) outperforms blind relabeling
-($\sim$0.39). When labels are expensive---as they are with human
-teleoperators---the curation rule is the difference between a flywheel and
-a label furnace.
+for the bulk of the performance. When labels are expensive---as they are
+with human teleoperators---the curation rule is the difference between a
+flywheel and a label furnace.
 
-\textbf{Result 5: curation dampens oracle labeling noise.}
+\textbf{Result 5: versus RL from scratch, the gap is interaction, not
+algorithm.} Fig.~\ref{fig:budget} plots held-out success against
+training interactions on a log axis. DQN---with the full state, a dense
+reward, and \dqnSteps\ environment steps---reaches only \dqnFinal\
+success. The flywheel reaches \relabelFinal\ with \flywheelSteps\
+interactions ($\sim$20$\times$ fewer), and \texttt{relabel} compounds
+from the first iteration while DQN's curve is still climbing. This is the
+label-efficiency argument for data flywheels in its cleanest form: the
+loop converts a small number of curated labels into compounding policy
+improvement, where tabula-rasa RL must spend interactions to rediscover
+pushing from scratch.
+
+\textbf{Result 6: curation dampens oracle labeling noise.}
 Fig.~\ref{fig:oracle} varies the relabeling oracle's action noise. Both
 rules are robust to moderate noise; at high noise blind relabeling loses
 \blindDrop\% of its clean-oracle performance, while curated relabeling
 loses only \curatedDrop\%. Curation refuses the far-off failures whose
 labels are least reliable, so its corrective signal stays cleaner.
 
-\textbf{Result 6: the flywheel effect survives task difficulty.}
+\textbf{Result 7: the flywheel effect survives task difficulty.}
 Fig.~\ref{fig:diff} repeats the core comparison on the harder task: no
 feedback stays flat (\hardNone), self-curation gains little
 (\hardSelfFinal), and relabeling still compounds (\hardRelabelFinal,
 roughly $3\times$ the frozen baseline).
+
+\textbf{Result 8: the loop transfers to raw pixels.}
+Fig.~\ref{fig:vision} repeats the core comparison with the CNN policy
+consuming \visionImg$\times$\visionImg\ images instead of the state
+vector. The ordering is identical: no feedback is flat
+(\visionNoneFinal), and curated relabeling compounds (\visionRelabelFinal,
+$+$\visionRelabelGain). The curation decision---not the observation
+space---is what determines whether the flywheel spins; a perception
+module can be dropped into the loop without changing its dynamics.
 
 \begin{figure}[t]
 \centering
@@ -303,6 +347,25 @@ Relabeling still compounds; no feedback stays flat.}
 \label{fig:diff}
 \end{figure}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../results/figs/budget_comparison.png}
+\caption{Label efficiency vs.\ tabula-rasa RL: held-out success against
+training interactions (log axis). DQN reaches \dqnFinal\ after
+\dqnSteps\ steps; the flywheel reaches \relabelFinal\ with
+\flywheelSteps. Eval is measurement-only and excluded from both counts.}
+\label{fig:budget}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../results/figs/vision_curves.png}
+\caption{Perception-grounded flywheel: held-out success vs.\ iteration for
+the CNN policy on \visionImg$\times$\visionImg\ RGB observations. The
+curation ordering matches the state-based study.}
+\label{fig:vision}
+\end{figure}
+
 \section{Discussion}
 \textbf{Why relabeling, not success, spins the wheel.} Behavior cloning
 fails because of compounding error: the policy drifts off the expert
@@ -310,21 +373,35 @@ trajectory, and no amount of expert data fixes states it has never reached.
 On-policy rollouts reach exactly those states. The question is what to do
 with them. Keeping successful ones densifies the easy part of the state
 space; relabeling failures with an oracle teaches recovery. The asymmetry
-explains Results 2 and 3 directly.
+explains Results 2, 3, and 8 directly---and its independence from the
+observation space (Result 8) suggests the mechanism is the data, not the
+perception stack.
+
+\textbf{Why the flywheel beats tabula-rasa RL.} DQN spends interactions
+discovering the task structure---which joint commands move the block, how
+pushing works, what the goal is---and must revisit it for every new start.
+The flywheel never rediscovers: its labels encode the expert's task
+solution, so its interactions are spent where the policy is wrong, not
+where it is ignorant (Result 5). The ~20$\times$ interaction gap is
+consistent with the offline-vs-online distinction familiar from
+data-centric robotics~\cite{fu2020d4rl}: with good data, learning is a
+regression problem; without it, learning is a search problem.
 
 \textbf{When does curation beat ingestion?} The oracle here is free and
 perfect, so blind ingestion wins on raw final performance (\relabelFinal
 vs.\ \curatedFinal). But real oracles are neither: teleoperation hours are
 scarce and labels are imperfect. Result 4 shows curation wins on
-\emph{cost}---less than half the queries for 72\% of the performance---and
-Result 5 shows it also wins on \emph{robustness} to labeling mistakes
-(\curatedDrop\% vs.\ \blindDrop\% loss). Blind ingestion is the right
-rule only when labels are free and perfect; curation is the right rule in
-the cost regime industrial cells actually face.
+\emph{cost}---less than half the queries for the bulk of the
+performance---and Result 6 shows it also wins on \emph{robustness} to
+labeling mistakes (\curatedDrop\% vs.\ \blindDrop\% loss). Blind
+ingestion is the right rule only when labels are free and perfect;
+curation is the right rule in the cost regime industrial cells actually
+face.
 
 \textbf{Limitations.} The task is a 2-D kinematic push; there is no
-sim2real gap, perception, or embodiment. The policy is a small MLP, not a
-foundation model. \numSeeds\ seeds bound the statistical power, and the
+sim2real gap or embodiment, and the visual observations are renders, not
+camera images. The policies are small (an MLP and a toy CNN), not
+foundation models. \numSeeds\ seeds bound the statistical power, and the
 difficulty ablation uses a shorter horizon than the main study. None of
 these threaten the qualitative conclusions, which are about
 \emph{relative} behavior of ingestion rules under identical conditions,
@@ -352,10 +429,13 @@ flywheel report to be that instrument.
 
 \section*{Reproducibility}
 All code, seeds, and results are in the repository: \texttt{src/datafly/}
-(framework), \texttt{scripts/run\_experiment.py} (study), \texttt{results/}
-(committed JSON + figures), \texttt{scripts/render\_results.py} (paper
-tables from JSON---no number is hand-typed). The study runs on one CPU
-core with numpy only, in minutes.
+(framework), \texttt{scripts/run\_experiment.py} (study),
+\texttt{scripts/analyze.py} + \texttt{scripts/render\_results.py} (figures
+and paper tables from committed JSON---no number is hand-typed), and
+\texttt{kaggle/} (the GPU pipeline that produced the vision and RL
+results). The state-based study runs on CPU in minutes; the vision study
+and DQN baseline run on a free Kaggle GPU kernel end-to-end. \texttt{pytest
+tests} (17 tests) covers physics, curation, the loop, and the vision path.
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}

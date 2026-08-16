@@ -24,17 +24,34 @@ STRATEGY_LABELS = {
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--results-dir", default="results")
+    ap.add_argument("--results-dir", default="results",
+                    help="results dir (or parent with main/ for the main study)")
+    ap.add_argument("--main-dir", default=None, help="dir with the main study summary.json")
+    ap.add_argument("--vision-dir", default=None, help="dir with the vision study summary.json")
+    ap.add_argument("--dqn-file", default=None, help="path to the DQN baseline json")
     ap.add_argument("--out-dir", default="paper/generated")
     args = ap.parse_args()
 
-    res_dir = Path(args.results_dir)
-    summary_path = res_dir / "summary.json"
-    if not summary_path.exists():
-        summary_path = res_dir / "main" / "summary.json"  # study lives in results/main/
-    summary = json.loads(summary_path.read_text())
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
+
+    if args.main_dir:
+        summary_path = Path(args.main_dir) / "summary.json"
+    else:
+        res_dir = Path(args.results_dir)
+        summary_path = res_dir / "summary.json"
+        if not summary_path.exists():
+            summary_path = res_dir / "main" / "summary.json"  # study lives in results/main/
+    summary = json.loads(summary_path.read_text())
+
+    vision = None
+    if args.vision_dir:
+        vp = Path(args.vision_dir) / "summary.json"
+        if vp.exists():
+            vision = json.loads(vp.read_text())
+    dqn = None
+    if args.dqn_file and Path(args.dqn_file).exists():
+        dqn = json.loads(Path(args.dqn_file).read_text())
 
     abl = None
     abl_path = res_dir / "ablations.json"
@@ -132,6 +149,30 @@ def main() -> None:
             f"\\newcommand{{\\hardNone}}{{{df['none'][0]:.2f}}}",
             f"\\newcommand{{\\hardRelabelFinal}}{{{df['relabel'][-1]:.2f}}}",
             f"\\newcommand{{\\hardSelfFinal}}{{{df['success_only'][-1]:.2f}}}",
+        ]
+    if vision:
+        v = vision["strategies"]
+        macros += [
+            "%% perception-grounded (vision) study",
+            f"\\newcommand{{\\visionNoneFinal}}{{{v['none']['success_rate_mean'][-1]:.2f}}}",
+            f"\\newcommand{{\\visionRelabelFinal}}{{{v['relabel']['success_rate_mean'][-1]:.2f}}}",
+            f"\\newcommand{{\\visionCuratedFinal}}{{{v['relabel_curated']['success_rate_mean'][-1]:.2f}}}",
+            f"\\newcommand{{\\visionRelabelGain}}{{{v['relabel']['success_rate_mean'][-1] - v['relabel']['success_rate_mean'][0]:.2f}}}",
+            f"\\newcommand{{\\visionCuratedGain}}{{{v['relabel_curated']['success_rate_mean'][-1] - v['relabel_curated']['success_rate_mean'][0]:.2f}}}",
+            f"\\newcommand{{\\visionSeeds}}{{{vision['config']['seeds']}}}",
+            f"\\newcommand{{\\visionEval}}{{{vision['config']['eval_starts']}}}",
+            f"\\newcommand{{\\visionIter}}{{{vision['config']['iterations']}}}",
+            f"\\newcommand{{\\visionImg}}{{{vision['config']['img_size']}}}",
+        ]
+    if dqn:
+        fs = strategies.get("relabel", {})
+        log = fs.get("curation_log", [])
+        fly_inter = log[-1]["dataset_frames"] if log else 0
+        macros += [
+            "%% DQN from-scratch baseline",
+            f"\\newcommand{{\\dqnFinal}}{{{dqn['final_success']:.2f}}}",
+            f"\\newcommand{{\\dqnSteps}}{{{dqn['total_env_steps']:,}}}",
+            f"\\newcommand{{\\flywheelSteps}}{{{int(fly_inter):,}}}",
         ]
     (out / "numbers.tex").write_text("\n".join(macros) + "\n")
 

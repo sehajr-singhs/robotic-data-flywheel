@@ -16,3 +16,8 @@ paper/*.log
 paper/*.out
 paper/*.toc
 paper/*.synctex.gz
+
+# local kaggle scratch
+kaggle_out/
+kaggle_pull/
+kaggle_payload/
