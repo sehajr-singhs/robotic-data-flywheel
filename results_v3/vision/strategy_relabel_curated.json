@@ -1,0 +1,104 @@
+{
+  "success_rate_mean": [
+    0.2675,
+    0.2512,
+    0.1812,
+    0.1638,
+    0.14,
+    0.1437
+  ],
+  "success_rate_std": [
+    0.0462,
+    0.0545,
+    0.0514,
+    0.0533,
+    0.0283,
+    0.0336
+  ],
+  "success_rate_seeds": [
+    [
+      0.215,
+      0.175,
+      0.11,
+      0.12,
+      0.1,
+      0.095
+    ],
+    [
+      0.34,
+      0.325,
+      0.235,
+      0.255,
+      0.18,
+      0.175
+    ],
+    [
+      0.27,
+      0.27,
+      0.225,
+      0.14,
+      0.14,
+      0.13
+    ],
+    [
+      0.245,
+      0.235,
+      0.155,
+      0.14,
+      0.14,
+      0.175
+    ]
+  ],
+  "curation_log": [
+    {
+      "iteration": 1,
+      "n_rollouts": 50,
+      "n_success": 10,
+      "n_curated": 29,
+      "n_relabeled": 19,
+      "oracle_queries": 1330,
+      "dataset_frames": 2880,
+      "rollout_success_rate": 0.2
+    },
+    {
+      "iteration": 2,
+      "n_rollouts": 50,
+      "n_success": 10,
+      "n_curated": 28,
+      "n_relabeled": 18,
+      "oracle_queries": 1260,
+      "dataset_frames": 4365,
+      "rollout_success_rate": 0.2
+    },
+    {
+      "iteration": 3,
+      "n_rollouts": 50,
+      "n_success": 3,
+      "n_curated": 16,
+      "n_relabeled": 13,
+      "oracle_queries": 910,
+      "dataset_frames": 5328,
+      "rollout_success_rate": 0.06
+    },
+    {
+      "iteration": 4,
+      "n_rollouts": 50,
+      "n_success": 6,
+      "n_curated": 21,
+      "n_relabeled": 15,
+      "oracle_queries": 1050,
+      "dataset_frames": 6490,
+      "rollout_success_rate": 0.12
+    },
+    {
+      "iteration": 5,
+      "n_rollouts": 50,
+      "n_success": 3,
+      "n_curated": 16,
+      "n_relabeled": 13,
+      "oracle_queries": 910,
+      "dataset_frames": 7457,
+      "rollout_success_rate": 0.06
+    }
+  ]
+}

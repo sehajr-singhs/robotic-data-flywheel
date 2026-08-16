@@ -32,41 +32,56 @@ hand-typed.
 
 ## The core result
 
-Held-out push success (mean over 4 training seeds, 200 held-out starts per
-evaluation) as the flywheel turns:
+Held-out push success (mean over 6 training seeds, 300 held-out starts per
+evaluation, GPU study) as the flywheel turns:
 
-| strategy | iter 0 | iter 5 | Δ |
+| strategy | iter 0 | iter 6 | Δ |
 |---|---|---|---|
-| none (frozen) | 0.17 | 0.17 | — |
-| self: successes | 0.20 | 0.38 | +0.18 |
-| self: near-misses | 0.17 | 0.33 | +0.16 |
-| self: novel successes | 0.17 | 0.38 | +0.21 |
-| **oracle: curated relabel** | **0.17** | **0.43** | **+0.26** |
-| **oracle: relabel all (DAgger)** | **0.17** | **0.60** | **+0.43** |
+| none (frozen) | 0.12 | 0.12 | — |
+| self: successes | 0.15 | 0.34 | +0.19 |
+| self: near-misses | 0.14 | 0.32 | +0.18 |
+| self: novel successes | 0.17 | 0.37 | +0.20 |
+| **oracle: curated relabel** | **0.20** | **0.48** | **+0.28** |
+| **oracle: relabel all (DAgger)** | **0.15** | **0.66** | **+0.51** |
 
 Three findings:
 
-1. **No feedback ⇒ flat.** The frozen control sits at 0.17 — the null
+1. **No feedback ⇒ flat.** The frozen control sits at 0.12 — the null
    hypothesis the flywheel must beat.
 2. **Self-curation ⇒ modest, plateauing gains.** The policy's own
    successful episodes densify what it already does; they cannot repair
    what it does badly.
 3. **Relabeling deployment failures ⇒ the flywheel compounds.** Oracle
-   relabeling (DAgger-style) more than triples success
-   (0.17 → 0.60).
+   relabeling (DAgger-style) more than quadruples success
+   (0.15 → 0.66).
 
 ### Ablations (see `results/ablations.json`, `scripts/analyze.py`)
 
-- **Label efficiency.** Curated relabeling reaches 0.43 with **7,490**
-  oracle queries; blind relabeling needs **16,773** to reach 0.60 —
-  curation buys ~1.6× the performance per query, and wins at any matched
-  budget below the blind-relabel ceiling.
+- **Label efficiency.** Curated relabeling reaches 0.48 with ~11k
+  oracle queries; blind relabeling needs ~27k to reach 0.66 — curation
+  buys ~1.4× the performance per query, and wins at any matched budget.
 - **Oracle quality.** With a noisy relabeling oracle (human-label
   mistakes), blind relabeling loses 20% of its clean-oracle performance;
   curated relabeling loses only 13% — curation dampens label noise.
 - **Difficulty.** On a harder task (tighter goal, longer pushes), the
   flywheel still compounds: relabeling 0.09 → 0.26 while no feedback stays
-  flat at 0.09.
+  flat.
+
+### v3 scale-up: perception + an RL anchor (GPU, `kaggle/`)
+
+- **The loop transfers to raw pixels.** A torch CNN on
+  64×64 RGB renders behaves like the state MLP under *curated*
+  relabeling — but **blind relabeling crashes it** (0.27 → 0.06): the
+  relabeled frames flood the dataset (14× the clean demos) and the
+  high-capacity CNN overfits its own failure distribution. Curation is
+  what keeps the loop stable in perception space too.
+- **Flywheel ≫ RL from scratch.** A DQN trained from scratch with a dense
+  reward reaches 0.045 success after 300,000 environment interactions;
+  the flywheel reaches 0.66 with ~29k collected frames — a ~10×
+  interaction budget at >14× the success rate. This is the
+  label-efficiency argument in its strongest form: the loop converts
+  *existing* deployment telemetry into signal; it does not pay the
+  exploration cost.
 
 The mechanism is compounding error: BC policies drift off the expert
 trajectory, and no amount of expert data fixes states the policy has never
@@ -77,21 +92,27 @@ what the loop does with them.
 
 ```
 src/datafly/
-  envs/planar_pusher.py      # 2-link arm pushing a block (numpy, fast)
+  envs/planar_pusher.py      # 2-link arm pushing a block (numpy, fast) + pixel renderer
   policies/expert.py         # scripted oracle (state-complete, "human labeler")
   policies/mlp.py            # BC policy (numpy MLP, manual backprop) + rollouts
+  policies/cnn.py            # torch CNN vision policy (BC, optional dep)
+  policies/dqn.py            # DQN-from-scratch RL baseline (optional dep)
   curation/scores.py         # success / progress / smoothness / coverage
-  curation/strategies.py     # six ingestion rules
-  loop.py                    # the flywheel driver
+  curation/strategies.py     # seven ingestion rules (incl. relabel_balanced)
+  loop.py                    # the flywheel driver (obs_mode: state|image)
   eval.py                    # fixed held-out evaluation
   viz.py                     # success curves, flywheel report, trajectories
 scripts/
   run_experiment.py          # run the study (per-strategy JSON)
   merge_results.py           # assemble summary.json + figures
+  rebuild_summary.py         # reassemble summary.json from kernel per-strategy files
+  analyze.py                 # ablation figures + budget comparison
   render_results.py          # paper tables from JSON
+  build_site.py              # GitHub Pages site
+kaggle/                      # GPU kernels that produced the v3 results
 paper/                       # manuscript.tex (IEEEtran) + refs.bib
 results/                     # committed results + figures (single source of truth)
-tests/                       # 13 tests: env, expert, curation, loop determinism
+tests/                       # 17 tests: env, expert, curation, loop, vision
 ```
 
 The policy is a deliberately small numpy MLP: the point of the study is

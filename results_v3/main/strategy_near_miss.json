@@ -1,0 +1,138 @@
+{
+  "success_rate_mean": [
+    0.145,
+    0.2411,
+    0.25,
+    0.2761,
+    0.2828,
+    0.3261,
+    0.3183
+  ],
+  "success_rate_std": [
+    0.0287,
+    0.0578,
+    0.0647,
+    0.06,
+    0.0387,
+    0.0478,
+    0.0348
+  ],
+  "success_rate_seeds": [
+    [
+      0.1167,
+      0.2333,
+      0.2033,
+      0.26,
+      0.2967,
+      0.3233,
+      0.2667
+    ],
+    [
+      0.1133,
+      0.24,
+      0.29,
+      0.2667,
+      0.29,
+      0.3067,
+      0.3067
+    ],
+    [
+      0.1333,
+      0.2167,
+      0.1733,
+      0.1933,
+      0.2367,
+      0.27,
+      0.31
+    ],
+    [
+      0.1867,
+      0.36,
+      0.2933,
+      0.34,
+      0.3467,
+      0.3333,
+      0.33
+    ],
+    [
+      0.14,
+      0.17,
+      0.19,
+      0.23,
+      0.2333,
+      0.3,
+      0.3133
+    ],
+    [
+      0.18,
+      0.2267,
+      0.35,
+      0.3667,
+      0.2933,
+      0.4233,
+      0.3833
+    ]
+  ],
+  "curation_log": [
+    {
+      "iteration": 1,
+      "n_rollouts": 80,
+      "n_success": 4,
+      "n_curated": 26,
+      "n_relabeled": 0,
+      "oracle_queries": 0,
+      "dataset_frames": 3909,
+      "rollout_success_rate": 0.05
+    },
+    {
+      "iteration": 2,
+      "n_rollouts": 80,
+      "n_success": 15,
+      "n_curated": 33,
+      "n_relabeled": 0,
+      "oracle_queries": 0,
+      "dataset_frames": 6219,
+      "rollout_success_rate": 0.1875
+    },
+    {
+      "iteration": 3,
+      "n_rollouts": 80,
+      "n_success": 18,
+      "n_curated": 40,
+      "n_relabeled": 0,
+      "oracle_queries": 0,
+      "dataset_frames": 9019,
+      "rollout_success_rate": 0.225
+    },
+    {
+      "iteration": 4,
+      "n_rollouts": 80,
+      "n_success": 21,
+      "n_curated": 39,
+      "n_relabeled": 0,
+      "oracle_queries": 0,
+      "dataset_frames": 11749,
+      "rollout_success_rate": 0.2625
+    },
+    {
+      "iteration": 5,
+      "n_rollouts": 80,
+      "n_success": 28,
+      "n_curated": 33,
+      "n_relabeled": 0,
+      "oracle_queries": 0,
+      "dataset_frames": 14059,
+      "rollout_success_rate": 0.35
+    },
+    {
+      "iteration": 6,
+      "n_rollouts": 80,
+      "n_success": 19,
+      "n_curated": 27,
+      "n_relabeled": 0,
+      "oracle_queries": 0,
+      "dataset_frames": 15949,
+      "rollout_success_rate": 0.2375
+    }
+  ]
+}

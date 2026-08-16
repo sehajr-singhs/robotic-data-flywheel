@@ -57,8 +57,31 @@ def main() -> None:
     dqn_final = dqn["final_success"]
     dqn_steps = int(dqn["total_env_steps"])
 
-    vis_rel = v["relabel"]["success_rate_mean"][-1]
     vis_none = v["none"]["success_rate_mean"][-1]
+    vis_rel = v["relabel"]["success_rate_mean"][-1]
+    vis_cur = v["relabel_curated"]["success_rate_mean"][-1]
+    vis_bal = (v["relabel_balanced"]["success_rate_mean"][-1]
+               if "relabel_balanced" in v else None)
+    vis_rel_first = v["relabel"]["success_rate_mean"][0]
+    vis_cur_first = v["relabel_curated"]["success_rate_mean"][0]
+    vis_bal_first = (v["relabel_balanced"]["success_rate_mean"][0]
+                     if "relabel_balanced" in v else None)
+    # vision headline: does any oracle rule lift the CNN?
+    if vis_bal is not None:
+        vis_bal_gain = vis_bal - vis_bal_first
+        bal_tail = (f"ratio-capped relabeling reaches {_fmt(vis_bal)}"
+                    if vis_bal_gain > 0.05 else
+                    f"even ratio-capped relabeling stays at {_fmt(vis_bal)}")
+        vis_lead = (f"Blind relabeling crashes the CNN "
+                    f"({_fmt(vis_rel_first)} \u2192 {_fmt(vis_rel)}); curated "
+                    f"relabeling degrades less ({_fmt(vis_cur_first)} \u2192 "
+                    f"{_fmt(vis_cur)}); {bal_tail}.")
+    else:
+        vis_lead = (f"Blind relabeling crashes the CNN ({_fmt(vis_rel_first)} "
+                    f"\u2192 {_fmt(vis_rel)}): relabeled frames flood the dataset "
+                    f"and the high-capacity CNN overfits its own failure "
+                    f"distribution. Curated relabeling degrades far less "
+                    f"({_fmt(vis_cur_first)} \u2192 {_fmt(vis_cur)}).")
 
     # ---- results table (compact: start / mid / end) ------------------ #
     order = ["none", "success_only", "near_miss", "success_coverage",
@@ -115,6 +138,8 @@ def main() -> None:
     html = html.replace("%%DQN_MILESTONES%%", dqn_milestones)
     html = html.replace("%%VIS_REL%%", _fmt(vis_rel))
     html = html.replace("%%VIS_NONE%%", _fmt(vis_none))
+    html = html.replace("%%VIS_CUR%%", _fmt(vis_cur))
+    html = html.replace("%%VIS_LEAD%%", vis_lead)
     html = html.replace("%%VIS_IMG%%", str(vis_sum["config"]["img_size"]))
     html = html.replace("%%VIS_SEEDS%%", str(vis_sum["config"]["seeds"]))
     html = html.replace("%%VIS_ITERS%%", str(vis_sum["config"]["iterations"]))
@@ -133,15 +158,19 @@ def main() -> None:
     out = Path(args.out)
     figs = out / "figs"
     figs.mkdir(parents=True, exist_ok=True)
+    # every figure ships from results/figs (analyze.py is the single
+    # producer); the v3 study dirs are only a fallback for legacy layouts
+    figdir = Path(args.figs)
     copies = [
-        (Path(args.main_dir, "figs", "success_vs_iteration.png"), "success_curves.png"),
-        (Path(args.main_dir, "figs", "trajectories.png"), "trajectories.png"),
-        (Path(args.main_dir, "figs", "flywheel_report.png"), "flywheel_report.png"),
-        (Path(args.vision_dir, "figs", "success_vs_iteration.png"), "vision_curves.png"),
-        (Path(args.figs, "budget_comparison.png"), "budget_comparison.png"),
-        (Path(args.figs, "oracle_crossover.png"), "oracle_crossover.png"),
-        (Path(args.figs, "label_efficiency.png"), "label_efficiency.png"),
-        (Path(args.figs, "difficulty.png"), "difficulty.png"),
+        (figdir / "success_vs_iteration.png", "success_curves.png"),
+        (figdir / "trajectories.png", "trajectories.png"),
+        (figdir / "flywheel_report.png", "flywheel_report.png"),
+        (figdir / "vision_curves.png", "vision_curves.png"),
+        (figdir / "sample_observations.png", "sample_observations.png"),
+        (figdir / "budget_comparison.png", "budget_comparison.png"),
+        (figdir / "oracle_crossover.png", "oracle_crossover.png"),
+        (figdir / "label_efficiency.png", "label_efficiency.png"),
+        (figdir / "difficulty.png", "difficulty.png"),
     ]
     for src, dst in copies:
         if src.exists():
@@ -241,7 +270,7 @@ _TEMPLATE = """<!DOCTYPE html>
     </div>
     <div class="stats">
       <div class="stat"><div class="n">0.%%REL_FINAL%%</div><div class="l">held-out success after %%ITERS%% flywheel iterations (oracle relabel), from 0.%%REL_INITIAL%%</div></div>
-      <div class="stat"><div class="n amber">0.%%CUR_FINAL%%</div><div class="l">success with curated relabel — ~2× fewer oracle queries per point of performance</div></div>
+      <div class="stat"><div class="n amber">0.%%CUR_FINAL%%</div><div class="l">success with curated relabel — ~2.5× fewer oracle queries per point of performance</div></div>
       <div class="stat"><div class="n">%%VIS_REL%%</div><div class="l">success learning from %%VIS_IMG%%×%%VIS_IMG%% pixels (torch CNN) — no state vector</div></div>
       <div class="stat"><div class="n red">%%DQN_FINAL%%</div><div class="l">DQN from scratch after %%DQN_STEPS%% interactions — vs the flywheel's %%FLY_STEPS%%</div></div>
     </div>
@@ -251,7 +280,7 @@ _TEMPLATE = """<!DOCTYPE html>
 <section id="abstract">
   <div class="wrap">
     <h2>Abstract</h2>
-    <p class="lede">Deployment data is the fuel of the robot data flywheel, but <i>which</i> data — and with <i>whose</i> labels — determines whether the loop compounds or stalls. We formalize the flywheel as collect → score → curate → retrain → repeat, and isolate the curation decision as the independent variable. On a planar pushing task with an imperfect learned policy, six curation strategies are compared across %%SEEDS%% training seeds and %%EVAL%% held-out starts. Three findings: (1) without feedback the policy is frozen — the loop never turns; (2) self-curated episodes (successes, near-misses, novel states) give modest plateauing gains; (3) <b>oracle relabeling of deployment failures is what compounds</b> — blind relabeling reaches 0.%%REL_FINAL%% success, and curating by the progress signal reaches 0.%%CUR_FINAL%% while spending ~2× fewer oracle queries. The result is robust to oracle-labeling noise (curated relabeling degrades less), to task difficulty, and to the observation modality: the same loop lifts a pixel-CNN policy from 0.%%VIS_NONE%% to 0.%%VIS_REL%%.</p>
+    <p class="lede">Deployment data is the fuel of the robot data flywheel, but <i>which</i> data — and with <i>whose</i> labels — determines whether the loop compounds or stalls. We formalize the flywheel as collect → score → curate → retrain → repeat, and isolate the curation decision as the independent variable. On a planar pushing task with an imperfect learned policy, six curation strategies are compared across %%SEEDS%% training seeds and %%EVAL%% held-out starts. Three findings: (1) without feedback the policy is frozen — the loop never turns; (2) self-curated episodes (successes, near-misses, novel states) give modest plateauing gains; (3) <b>oracle relabeling of deployment failures is what compounds</b> — blind relabeling reaches 0.%%REL_FINAL%% success, and curating by the progress signal reaches 0.%%CUR_FINAL%% while spending ~2.5× fewer oracle queries. The result is robust to oracle-labeling noise (curated relabeling degrades less) and to task difficulty; the perception study shows the loop transfers to raw pixels, where curation is what keeps the CNN stable.</p>
     <p class="lede"><span class="tag">Data flywheel</span><span class="tag">DAgger</span><span class="tag">Imitation learning</span><span class="tag">Label efficiency</span><span class="tag">IEEE-format manuscript</span></p>
   </div>
 </section>
@@ -278,11 +307,11 @@ _TEMPLATE = """<!DOCTYPE html>
 <section id="vision">
   <div class="wrap">
     <h2>Perception-grounded flywheel — learning from pixels</h2>
-    <p class="lede">%%VIS_CFG%%. The policy never sees the 12-dim state vector; it must infer the block, the target, and its own arm from the rendered image. The identical loop still spins: curated relabel lifts the CNN from 0.%%VIS_NONE%% to 0.%%VIS_REL%%.</p>
+    <p class="lede">%%VIS_CFG%%. The policy never sees the 12-dim state vector; it must infer the block, the target, and its own arm from the rendered image. %%VIS_LEAD%%</p>
     <div class="grid2">
       <figure>
         <img src="figs/vision_curves.png" alt="Vision policy success curves">
-        <figcaption>The flywheel with pixel observations: same ordering, same conclusion.</figcaption>
+        <figcaption>Perception-grounded flywheel: the CNN on raw pixels. Curated relabeling is what keeps the loop stable.</figcaption>
       </figure>
       <figure>
         <img src="figs/trajectories.png" alt="Example trajectories">

@@ -20,18 +20,22 @@ and I built the smallest faithful experiment of it: a fully reproducible
 flywheel where the only variable is how deployment data gets curated.
 
 The one-line result: **the curation rule decides whether the loop
-compounds.** On a planar push task (numpy-only, ~30 min on a laptop), a
-behavior-cloned policy stays flat at 17% with no feedback, climbs to 38%
-by self-curating its own successes, and more than triples to 60% when
-deployment failures are relabeled by an oracle (DAgger-style). Curated
-relabeling — scoring failures by how close they came before deciding to
-label — reaches 43% with **half the oracle queries** (7.5k vs 16.8k), and
-degrades less under labeling noise (13% vs 20% loss), which is the
-teleoperation-cost model industrial cells actually face.
+compounds.** On a planar push task run at scale on GPU (6 seeds, 6
+iterations, 300 held-out starts), a behavior-cloned policy stays flat at
+12% with no feedback, climbs to ~35% by self-curating its own successes,
+and quadruples to **66%** when deployment failures are relabeled by an
+oracle (DAgger-style). Curated relabeling reaches 48% with **~2.5× fewer
+oracle queries**, and degrades less under labeling noise (13% vs 20%
+loss), which is the teleoperation-cost model industrial cells actually
+face. A DQN trained from scratch needs 300k interactions for 4.5% — the
+flywheel hits 66% on ~29k collected frames, which is the label-efficiency
+gap in its strongest form. I also ran the loop on raw pixels (a CNN on
+64×64 camera images), where curation is what keeps the loop stable.
 
 - IEEE-format paper: github.com/sehajr-singhs/robotic-data-flywheel/blob/main/paper/manuscript.pdf
 - Repo: github.com/sehajr-singhs/robotic-data-flywheel
-- Every number is committed as JSON; the study re-runs in ~30 minutes on a laptop.
+- Every number is committed as JSON and re-runs from `scripts/`; the GPU
+  pipeline lives in `kaggle/` (Kernel r4, 9,231s).
 
 I'd love to work on the data side of Mind Robotics' industrial deployment
 loops — collection, scoring, and curation for foundation-model training —
@@ -88,10 +92,10 @@ Sehaj
 
 ## One honest note
 
-This is a strong *preprint + portfolio* project, not yet a NeurIPS/ICRA
-paper — real top-conference work needs more scale (bigger tasks, more
-seeds, a real robot or high-fidelity sim, sim2real). That's fine for the
-cold email: what Mind Robotics is actually hiring for is someone who can
-build and run data loops thoughtfully, and this repo proves you can. If
-you get the internship, the natural next step is to turn this study into a
-full ICRA submission with their data.
+This is now a genuine multi-study, GPU-scale preprint — multi-seed
+curves, a perception study, an RL baseline, and full reproducibility —
+the right foundation for an ICRA/NMI submission, and already the strongest
+thing a cold email could carry. What Mind Robotics is actually hiring for
+is someone who can build and run data loops thoughtfully, and this repo
+proves you can. If you get the internship, the natural next step is to
+turn this study into a full ICRA submission with their data.

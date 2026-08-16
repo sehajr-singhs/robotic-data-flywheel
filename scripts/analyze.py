@@ -66,7 +66,8 @@ def main() -> None:
 
     # ---- 2. label efficiency (main run) ---------------------------------- #
     fig, ax = plt.subplots(figsize=(5.4, 3.6))
-    main = json.loads((res / "main" / "summary.json").read_text())
+    main_path = (Path(args.main_dir) / "summary.json") if args.main_dir else res / "main" / "summary.json"
+    main = json.loads(main_path.read_text())
     for name in ("relabel", "relabel_curated", "success_only"):
         d = main["strategies"][name]
         queries, succ = [], []
