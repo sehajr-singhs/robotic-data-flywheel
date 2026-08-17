@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 KERNELS = {
     "state": "sehajrsingh/datafly-mechanism-state-phase-diagram-r6",
     "vision": "sehajrsingh/datafly-mechanism-vision-phase-diagram-r6",
+    "contact": "sehajrsingh/datafly-contact-rich-mujoco-study-r7",
 }
 
 

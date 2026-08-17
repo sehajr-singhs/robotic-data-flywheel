@@ -1,0 +1,27 @@
+{
+  "config": {
+    "seed_demos": 40,
+    "expert_noise": 0.12,
+    "collect_per_iter": 30,
+    "eval_starts": 120,
+    "iterations": 4,
+    "seeds": 2,
+    "epochs": 60,
+    "lr": 0.001,
+    "hidden": 128,
+    "horizon": 70,
+    "seed": 0,
+    "oracle_noise": 0.0,
+    "success_radius": 0.07,
+    "target_ring": [
+      0.08,
+      0.18
+    ],
+    "strategies": [
+      "relabel"
+    ],
+    "obs_mode": "image",
+    "img_size": 64
+  },
+  "cell": "cap128/relabel"
+}

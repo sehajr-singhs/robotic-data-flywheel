@@ -1,0 +1,13 @@
+{
+  "id": "sehajrsingh/datafly-contact-rich-mujoco-study-r7",
+  "title": "DataFly contact-rich MuJoCo study (r7)",
+  "code_file": "contact_kernel.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": ["sehajrsingh/datafly-v3-src"],
+  "competition_sources": [],
+  "kernel_sources": []
+}

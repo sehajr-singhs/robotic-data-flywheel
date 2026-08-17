@@ -1,0 +1,94 @@
+{
+  "success_rate_mean": [
+    0.2292,
+    0.1958,
+    0.1125,
+    0.1125,
+    0.1292
+  ],
+  "success_rate_std": [
+    0.0708,
+    0.0125,
+    0.0292,
+    0.0708,
+    0.0208
+  ],
+  "success_rate_seeds": [
+    [
+      0.3,
+      0.2083,
+      0.1417,
+      0.1833,
+      0.15
+    ],
+    [
+      0.1583,
+      0.1833,
+      0.0833,
+      0.0417,
+      0.1083
+    ]
+  ],
+  "curation_log": [
+    {
+      "iteration": 1,
+      "n_rollouts": 30,
+      "n_success": 5,
+      "n_curated": 30,
+      "n_relabeled": 30,
+      "oracle_queries": 1855,
+      "dataset_frames": 1743,
+      "n_clean_frames": 884,
+      "n_relabeled_frames": 859,
+      "mix_ratio": 0.9717194570135747,
+      "rollout_success_rate": 0.16666666666666666,
+      "controller_ratio": 1.0,
+      "train_mse": 0.0029988493770360947
+    },
+    {
+      "iteration": 2,
+      "n_rollouts": 30,
+      "n_success": 7,
+      "n_curated": 30,
+      "n_relabeled": 30,
+      "oracle_queries": 1691,
+      "dataset_frames": 1262,
+      "n_clean_frames": 884,
+      "n_relabeled_frames": 378,
+      "mix_ratio": 0.4276018099547511,
+      "rollout_success_rate": 0.23333333333333334,
+      "controller_ratio": 0.5,
+      "train_mse": 0.0016349590150639415
+    },
+    {
+      "iteration": 3,
+      "n_rollouts": 30,
+      "n_success": 9,
+      "n_curated": 30,
+      "n_relabeled": 30,
+      "oracle_queries": 1604,
+      "dataset_frames": 1036,
+      "n_clean_frames": 884,
+      "n_relabeled_frames": 152,
+      "mix_ratio": 0.17194570135746606,
+      "rollout_success_rate": 0.3,
+      "controller_ratio": 0.25,
+      "train_mse": 0.0012122547486796975
+    },
+    {
+      "iteration": 4,
+      "n_rollouts": 30,
+      "n_success": 3,
+      "n_curated": 30,
+      "n_relabeled": 30,
+      "oracle_queries": 1948,
+      "dataset_frames": 1164,
+      "n_clean_frames": 884,
+      "n_relabeled_frames": 280,
+      "mix_ratio": 0.3167420814479638,
+      "rollout_success_rate": 0.1,
+      "controller_ratio": 0.375,
+      "train_mse": 0.0019215844804421067
+    }
+  ]
+}
