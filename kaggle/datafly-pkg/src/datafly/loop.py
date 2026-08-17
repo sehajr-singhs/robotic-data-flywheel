@@ -62,6 +62,9 @@ class FlywheelConfig:
     verbose: bool = True
     strategy_kwargs: dict = field(default_factory=dict)  # per-strategy kwargs (e.g. mix_ratio)
     track_train_loss: bool = False  # log BC loss on the training set each iteration (mechanism studies)
+    expert_cap_radius: Optional[float] = None  # contact radius for the expert's push logic (MuJoCo: 0.07)
+    env_cls: type = PlanarPusher     # swap in MuJoCoPusher for contact-rich dynamics
+    expert_cls: type = ScriptedExpert  # swap in PushCommitExpert for contact-rich dynamics
 
     def quick(self) -> "FlywheelConfig":
         """Downscaled config for smoke tests / CI."""
@@ -115,13 +118,17 @@ def _bc_loss(policy, dataset: list, img_size: int = IMG_SIZE) -> float:
 
 
 def run_flywheel(cfg: FlywheelConfig) -> dict:
-    env = PlanarPusher(seed=cfg.seed, horizon=cfg.horizon,
-                       success_radius=cfg.success_radius, target_ring=cfg.target_ring,
-                       record_images=cfg.obs_mode == "image", img_size=cfg.img_size)
-    expert = ScriptedExpert(noise=cfg.expert_noise, rng=np.random.default_rng(cfg.seed + 7))
+    env = cfg.env_cls(seed=cfg.seed, horizon=cfg.horizon,
+                      success_radius=cfg.success_radius, target_ring=cfg.target_ring,
+                      record_images=cfg.obs_mode == "image", img_size=cfg.img_size)
+    e_kwargs = ({"cap_radius": cfg.expert_cap_radius}
+                if cfg.expert_cap_radius else {})
+    expert = cfg.expert_cls(noise=cfg.expert_noise,
+                            rng=np.random.default_rng(cfg.seed + 7), **e_kwargs)
     # The *relabeling* oracle is a separate expert so its quality (labeling
     # noise, the human-teleoperator analogue) can be varied independently.
-    oracle = ScriptedExpert(noise=cfg.oracle_noise, rng=np.random.default_rng(cfg.seed + 17))
+    oracle = cfg.expert_cls(noise=cfg.oracle_noise,
+                            rng=np.random.default_rng(cfg.seed + 17), **e_kwargs)
 
     # obs_mode picks both the policy trainer and what the policy consumes:
     # the state vector (numpy MLP) or the raw pixels (torch CNN).
