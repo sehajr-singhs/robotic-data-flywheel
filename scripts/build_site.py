@@ -44,6 +44,25 @@ def main() -> None:
     dqn = json.loads(Path(args.dqn_file).read_text())
     abl = json.loads(Path(args.ablations).read_text())
 
+    # ---- mechanism study (mixing-ratio phase diagram) ---------------- #
+    mech_path = T / "results/mechanism.json"
+    if mech_path.exists():
+        mech = json.loads(mech_path.read_text())
+        mv = mech["vision"]["cap32"]
+        mv_ratios, mv_succ = mv["ratios"], mv["final_success"]
+        mix = dict(zip([str(r) for r in mv_ratios], mv_succ))
+        mix_rescue = mix["0.25"]
+        mix_one = mix.get("1.0")
+        mix_blind = mix["unbounded"]
+        c32 = mech["contact"]["cap32"]
+        contact_succ = dict(zip([str(r) for r in c32["ratios"]],
+                                c32["final_success"]))
+        contact_unbounded = contact_succ["unbounded"]
+        contact_capped = contact_succ["0.25"]
+    else:
+        mix_rescue = mix_one = mix_blind = None
+        contact_unbounded = contact_capped = None
+
     m = main_sum["strategies"]
     v = vis_sum["strategies"]
     cfg = main_sum["config"]
@@ -143,6 +162,17 @@ def main() -> None:
     html = html.replace("%%VIS_IMG%%", str(vis_sum["config"]["img_size"]))
     html = html.replace("%%VIS_SEEDS%%", str(vis_sum["config"]["seeds"]))
     html = html.replace("%%VIS_ITERS%%", str(vis_sum["config"]["iterations"]))
+    if mix_rescue is not None:
+        html = html.replace("%%MIX_RESCUE%%", _fmt(mix_rescue))
+        html = html.replace("%%MIX_BLIND%%", _fmt(mix_blind))
+        html = html.replace("%%MIX_GAIN%%", _fmt(mix_rescue - mix_blind))
+        html = html.replace("%%MIX_ONE%%", _fmt(mix_one) if mix_one else "—")
+        html = html.replace("%%CONTACT_UNBOUNDED%%", _fmt(contact_unbounded))
+        html = html.replace("%%CONTACT_CAPPED%%", _fmt(contact_capped))
+    else:
+        for k in ("%%MIX_RESCUE%%", "%%MIX_BLIND%%", "%%MIX_GAIN%%",
+                  "%%MIX_ONE%%", "%%CONTACT_UNBOUNDED%%", "%%CONTACT_CAPPED%%"):
+            html = html.replace(k, "—")
     html = html.replace("%%TABLE_ROWS%%", table)
     html = html.replace("%%MAIN_CFG%%",
                         f"{cfg['seeds']} training seeds × {cfg['eval_starts']} held-out "
@@ -171,15 +201,16 @@ def main() -> None:
         (figdir / "oracle_crossover.png", "oracle_crossover.png"),
         (figdir / "label_efficiency.png", "label_efficiency.png"),
         (figdir / "difficulty.png", "difficulty.png"),
+        (figdir / "fig_phase_diagram.png", "fig_phase_diagram.png"),
     ]
     for src, dst in copies:
         if src.exists():
             shutil.copy2(src, figs / dst)
-    for p in (T / "paper" / "manuscript.pdf",):
+    for p in (T / "paper" / "manuscript.pdf", T / "paper" / "nmi_paper.pdf"):
         if p.exists():
-            shutil.copy2(p, out / "manuscript.pdf")
+            shutil.copy2(p, out / p.name)
     (out / "index.html").write_text(html, encoding="utf-8")
-    print(f"site built -> {out}/index.html (+figs/, manuscript.pdf)")
+    print(f"site built -> {out}/index.html (+figs/, manuscript.pdf, nmi_paper.pdf)")
 
 
 _TEMPLATE = """<!DOCTYPE html>
@@ -250,11 +281,14 @@ _TEMPLATE = """<!DOCTYPE html>
     <span class="logo">DataFly</span>
     <a href="#results">Results</a>
     <a href="#vision">Vision</a>
+    <a href="#results">Results</a>
+    <a href="#vision">Vision</a>
+    <a href="#mechanism">Mechanism</a>
     <a href="#labels">Label efficiency</a>
-    <a href="#method">Method</a>
     <a href="#reproduce">Reproduce</a>
     <span class="spacer"></span>
-    <a href="manuscript.pdf" class="btn ghost">Paper (PDF)</a>
+    <a href="manuscript.pdf" class="btn ghost">IEEE paper</a>
+    <a href="nmi_paper.pdf" class="btn ghost">NMI-style</a>
     <a href="%%REPO%%" class="btn">GitHub</a>
   </div>
 </nav>
@@ -263,9 +297,10 @@ _TEMPLATE = """<!DOCTYPE html>
   <div class="wrap">
     <div class="kicker">Robot Learning · Closed-Loop Data</div>
     <h1>The data flywheel only spins if the <em>labels come back</em>.</h1>
-    <p class="sub">A reproducible study of the robot data flywheel: deploy a policy, score and curate its failures, and feed the right data back. On a planar pushing task we show that <b>relabeling deployment failures compounds</b> (0.%%REL_INITIAL%% → 0.%%REL_FINAL%% success), self-curated data plateaus, and no feedback is flat — and that the loop works even when the policy must <b>learn from raw pixels</b>.</p>
+    <p class="sub">A reproducible study of the robot data flywheel: deploy a policy, score and curate its failures, and feed the right data back. On a planar pushing task we show that <b>relabeling deployment failures compounds</b> (0.%%REL_INITIAL%% → 0.%%REL_FINAL%% success), self-curated data plateaus, and no feedback is flat — that the loop works even when the policy must <b>learn from raw pixels</b> — and that the loop is governed by one mechanism: <b>mixing-ratio control</b>.</p>
     <div class="hero-cta">
-      <a href="manuscript.pdf" class="btn">Read the paper</a>
+      <a href="manuscript.pdf" class="btn">Read the IEEE paper</a>
+      <a href="nmi_paper.pdf" class="btn ghost">NMI-style preprint</a>
       <a href="%%REPO%%" class="btn ghost">View the code</a>
     </div>
     <div class="stats">
@@ -274,6 +309,7 @@ _TEMPLATE = """<!DOCTYPE html>
       <div class="stat"><div class="n">%%VIS_REL%%</div><div class="l">success learning from %%VIS_IMG%%×%%VIS_IMG%% pixels (torch CNN) — no state vector</div></div>
       <div class="stat"><div class="n red">%%DQN_FINAL%%</div><div class="l">DQN from scratch after %%DQN_STEPS%% interactions — vs the flywheel's %%FLY_STEPS%%</div></div>
     </div>
+    <p class="lede" style="margin-top:26px;max-width:820px"><b>The mechanism.</b> Blind relabeling lets the relabeled:clean frame ratio grow without bound; a measured phase diagram shows the stability boundary is a function of policy capacity — ratio control alone rescues the CNN (0.%%MIX_BLIND%% → <b>0.%%MIX_RESCUE%%</b>), while a low-capacity MLP is flood-robust even on contact-rich MuJoCo dynamics (0.%%CONTACT_UNBOUNDED%% unbounded vs 0.%%CONTACT_CAPPED%% capped), and a closed-loop curator finds the stable operating point without knowing capacity.</p>
   </div>
 </header>
 
@@ -318,6 +354,18 @@ _TEMPLATE = """<!DOCTYPE html>
         <figcaption>Example rollouts: expert seed demo, an early policy failure, and a final success — the block path (green) shows the push being learned.</figcaption>
       </figure>
     </div>
+  </div>
+</section>
+
+<section id="mechanism">
+  <div class="wrap">
+    <h2>The mechanism — curation is mixing-ratio control</h2>
+    <p class="lede">Each flywheel iteration adds relabeled frames to a clean seed set; the <b>relabeled:clean mixing ratio</b> of the training set is what blind relabeling lets grow without bound. We make it the controlled variable and sweep it against unbounded relabeling, across policy capacities and — for the first time — on contact-rich MuJoCo dynamics.</p>
+    <figure>
+      <img src="figs/fig_phase_diagram.png" alt="The flood boundary: final success vs mixing ratio">
+      <figcaption>The flood boundary. <b>a</b> Perception (CNN): final success falls monotonically as the ratio grows — 0.%%MIX_RESCUE%% at ratio 0.25 → 0.%%MIX_ONE%% at 1.0 → 0.%%MIX_BLIND%% unbounded. <b>b–c</b> Kinematic and contact-rich MLP: flood-robust at every ratio (0.%%CONTACT_CAPPED%% capped vs 0.%%CONTACT_UNBOUNDED%% unbounded on MuJoCo). The inset shows the closed-loop curator converging into the stable region without knowing capacity.</figcaption>
+    </figure>
+    <p class="lede">A low-capacity policy cannot memorize its failure distribution, so even unbounded relabeling forces generalization; a high-capacity CNN can, so flooding it overfits its own failures. The <code>relabel_adaptive</code> curator treats the flywheel report as a sensor: it halves its ratio when held-out success regresses and grows it otherwise, converging to the stable operating point on the CNN while staying near capacity on the MLP.</p>
   </div>
 </section>
 
@@ -382,7 +430,7 @@ python scripts/build_site.py</pre>
 
 <footer>
   <div class="wrap">
-    Built with <a href="%%REPO%%">DataFly</a> · MIT licensed · manuscript in IEEE format ·
+    Built with <a href="%%REPO%%">DataFly</a> · MIT licensed · IEEE-format manuscript + NMI-style preprint ·
     results and figures regenerated from committed JSON by <code>scripts/build_site.py</code>.
   </div>
 </footer>

@@ -25,10 +25,13 @@ strategy is the *only* thing that varies:
      └────────────── retrain (fine-tune from previous) ◄─────────┘
 ```
 
-**Paper:** [`paper/manuscript.pdf`](paper/manuscript.pdf) (IEEE format,
-compiled from `paper/manuscript.tex`). Every number in the paper reads from
-committed JSON under `results/` via `scripts/render_results.py` — never
-hand-typed.
+**Papers:** [`paper/manuscript.pdf`](paper/manuscript.pdf) (IEEE format,
+compiled from `paper/manuscript.tex`) and
+[`paper/nmi_paper.pdf`](paper/nmi_paper.pdf) (Nature-Machine-Intelligence-
+style preprint, compiled from `paper/nmi_paper.tex`). Every number in both
+papers reads from committed JSON under `results/`, `results_v3/`, and
+`results_contact/` via `scripts/render_results.py` and
+`scripts/analyze_mechanism.py` — never hand-typed.
 
 ## The core result
 

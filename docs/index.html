@@ -66,11 +66,14 @@
     <span class="logo">DataFly</span>
     <a href="#results">Results</a>
     <a href="#vision">Vision</a>
+    <a href="#results">Results</a>
+    <a href="#vision">Vision</a>
+    <a href="#mechanism">Mechanism</a>
     <a href="#labels">Label efficiency</a>
-    <a href="#method">Method</a>
     <a href="#reproduce">Reproduce</a>
     <span class="spacer"></span>
-    <a href="manuscript.pdf" class="btn ghost">Paper (PDF)</a>
+    <a href="manuscript.pdf" class="btn ghost">IEEE paper</a>
+    <a href="nmi_paper.pdf" class="btn ghost">NMI-style</a>
     <a href="https://github.com/sehajr-singhs/robotic-data-flywheel" class="btn">GitHub</a>
   </div>
 </nav>
@@ -79,9 +82,10 @@
   <div class="wrap">
     <div class="kicker">Robot Learning · Closed-Loop Data</div>
     <h1>The data flywheel only spins if the <em>labels come back</em>.</h1>
-    <p class="sub">A reproducible study of the robot data flywheel: deploy a policy, score and curate its failures, and feed the right data back. On a planar pushing task we show that <b>relabeling deployment failures compounds</b> (0.0.15 → 0.0.66 success), self-curated data plateaus, and no feedback is flat — and that the loop works even when the policy must <b>learn from raw pixels</b>.</p>
+    <p class="sub">A reproducible study of the robot data flywheel: deploy a policy, score and curate its failures, and feed the right data back. On a planar pushing task we show that <b>relabeling deployment failures compounds</b> (0.0.15 → 0.0.66 success), self-curated data plateaus, and no feedback is flat — that the loop works even when the policy must <b>learn from raw pixels</b> — and that the loop is governed by one mechanism: <b>mixing-ratio control</b>.</p>
     <div class="hero-cta">
-      <a href="manuscript.pdf" class="btn">Read the paper</a>
+      <a href="manuscript.pdf" class="btn">Read the IEEE paper</a>
+      <a href="nmi_paper.pdf" class="btn ghost">NMI-style preprint</a>
       <a href="https://github.com/sehajr-singhs/robotic-data-flywheel" class="btn ghost">View the code</a>
     </div>
     <div class="stats">
@@ -90,6 +94,7 @@
       <div class="stat"><div class="n">0.06</div><div class="l">success learning from 64×64 pixels (torch CNN) — no state vector</div></div>
       <div class="stat"><div class="n red">0.04</div><div class="l">DQN from scratch after 300,000 interactions — vs the flywheel's 29,297</div></div>
     </div>
+    <p class="lede" style="margin-top:26px;max-width:820px"><b>The mechanism.</b> Blind relabeling lets the relabeled:clean frame ratio grow without bound; a measured phase diagram shows the stability boundary is a function of policy capacity — ratio control alone rescues the CNN (0.0.08 → <b>0.0.19</b>), while a low-capacity MLP is flood-robust even on contact-rich MuJoCo dynamics (0.0.57 unbounded vs 0.0.55 capped), and a closed-loop curator finds the stable operating point without knowing capacity.</p>
   </div>
 </header>
 
@@ -139,6 +144,18 @@
         <figcaption>Example rollouts: expert seed demo, an early policy failure, and a final success — the block path (green) shows the push being learned.</figcaption>
       </figure>
     </div>
+  </div>
+</section>
+
+<section id="mechanism">
+  <div class="wrap">
+    <h2>The mechanism — curation is mixing-ratio control</h2>
+    <p class="lede">Each flywheel iteration adds relabeled frames to a clean seed set; the <b>relabeled:clean mixing ratio</b> of the training set is what blind relabeling lets grow without bound. We make it the controlled variable and sweep it against unbounded relabeling, across policy capacities and — for the first time — on contact-rich MuJoCo dynamics.</p>
+    <figure>
+      <img src="figs/fig_phase_diagram.png" alt="The flood boundary: final success vs mixing ratio">
+      <figcaption>The flood boundary. <b>a</b> Perception (CNN): final success falls monotonically as the ratio grows — 0.0.19 at ratio 0.25 → 0.0.15 at 1.0 → 0.0.08 unbounded. <b>b–c</b> Kinematic and contact-rich MLP: flood-robust at every ratio (0.0.55 capped vs 0.0.57 unbounded on MuJoCo). The inset shows the closed-loop curator converging into the stable region without knowing capacity.</figcaption>
+    </figure>
+    <p class="lede">A low-capacity policy cannot memorize its failure distribution, so even unbounded relabeling forces generalization; a high-capacity CNN can, so flooding it overfits its own failures. The <code>relabel_adaptive</code> curator treats the flywheel report as a sensor: it halves its ratio when held-out success regresses and grows it otherwise, converging to the stable operating point on the CNN while staying near capacity on the MLP.</p>
   </div>
 </section>
 
@@ -203,7 +220,7 @@ python scripts/build_site.py</pre>
 
 <footer>
   <div class="wrap">
-    Built with <a href="https://github.com/sehajr-singhs/robotic-data-flywheel">DataFly</a> · MIT licensed · manuscript in IEEE format ·
+    Built with <a href="https://github.com/sehajr-singhs/robotic-data-flywheel">DataFly</a> · MIT licensed · IEEE-format manuscript + NMI-style preprint ·
     results and figures regenerated from committed JSON by <code>scripts/build_site.py</code>.
   </div>
 </footer>

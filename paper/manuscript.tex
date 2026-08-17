@@ -6,6 +6,7 @@
 \usepackage{cite}
 
 \input{generated/numbers}
+\input{generated/mechanism}
 
 \begin{document}
 
@@ -38,9 +39,16 @@ to raw pixels, but the balance flips: a CNN consuming
 \visionImg$\times$\visionImg\ images crashes under \emph{blind}
 relabeling (\visionRelabelFirst\ $\rightarrow$ \visionRelabelFinal)---the
 relabeled frames flood the dataset and the high-capacity CNN overfits its
-own failure distribution---while \emph{curated} relabeling degrades far
-less (\visionCuratedFirst\ $\rightarrow$ \visionCuratedFinal), making
-curation what keeps a perception loop stable. A DQN trained from scratch
+own failure distribution---while \emph{curated} relabeling degrades farless
+(\visionCuratedFirst\ $\rightarrow$ \visionCuratedFinal), making
+curation what keeps a perception loop stable. We identify the mechanism:
+the flywheel is \emph{mixing-ratio control}---a measured phase diagram
+over (relabeled:clean ratio $\times$ policy capacity) shows the stability
+boundary is a function of capacity (CNN: \mixBlindFinal\ unbounded
+$\rightarrow$ \mixRescueFinal\ at ratio 0.25; low-capacity MLP:
+flood-robust even on contact-rich MuJoCo dynamics), and a closed-loop
+curator finds the stable operating point without knowing capacity. A DQN
+trained from scratch
 with a dense reward needs \dqnSteps\ environment interactions to reach
 \dqnFinal\ success---versus the flywheel's \flywheelSteps. The effect also
 survives a harder task, where relabeling still compounds while no feedback
@@ -105,8 +113,17 @@ relabeling degrades less than blind relabeling (\curatedDrop\% vs.
 \item \textbf{Modality transfer}: the loop runs on \emph{vision} (a torch
 CNN on \visionImg$\times$\visionImg\ RGB images) where blind relabeling
 crashes the high-capacity policy but curated relabeling degrades far
-less---the first evidence we know of that the \emph{curation decision}
-interacts with policy capacity.
+less---measured evidence that the \emph{curation decision} interacts with
+policy capacity.
+\item \textbf{An identified mechanism}: the flywheel is \emph{mixing-ratio
+control}. A measured phase diagram over (relabeled:clean ratio $\times$
+policy capacity) shows the flood boundary is a function of capacity---ratio
+control alone rescues \mixRescueGain\ of the CNN's lost performance
+(\mixBlindFinal\ $\rightarrow$ \mixRescueFinal), while a low-capacity MLP
+is flood-robust even on \emph{contact-rich} MuJoCo dynamics
+(\contactBlindFinal\ unbounded vs.\ \contactMixFinal\ capped)---and a
+closed-loop curator (\texttt{relabel\_adaptive}) finds the stable
+operating point without knowing capacity.
 \item \textbf{An RL anchor}: a DQN trained from scratch with dense rewards
 reaches \dqnFinal\ success after \dqnSteps\ environment interactions---the
 flywheel reaches \relabelFinal\ with \flywheelSteps\---quantifying the
@@ -310,9 +327,37 @@ high-capacity CNN memorizes its own failure distribution instead of
 generalizing. \emph{Curated} relabeling---which admits far fewer
 frames---degrades far less (\visionCuratedFirst\ $\rightarrow$
 \visionCuratedFinal), so the curation decision determines whether a
-perception loop spins at all. This capacity--curation interaction is, to
-our knowledge, the first evidence that the flywheel's stability depends on
-\emph{what} the policy is, not just what data it sees.
+perception loop spins at all. This capacity--curation interaction is
+measured evidence that the flywheel's stability depends on \emph{what}
+the policy is, not just what data it sees.
+
+\textbf{Result 9: the mechanism is mixing-ratio control.}
+Fig.~\ref{fig:phase} identifies \emph{why} Result 8 holds. Each iteration
+adds relabeled frames to a clean seed set; the relabeled:clean
+\emph{mixing ratio} of the training set is what blind relabeling lets grow
+without bound. We make it the controlled variable: \texttt{relabel\_mix}
+relabels every rollout but prunes the oldest relabeled frames to hold the
+ratio at a target $r$, and we sweep $r \in \{0.25, 0.5, 1.0\}$ against
+unbounded (blind) relabeling. In perception space the boundary is sharp
+and monotone: CNN final success falls from \mixRescueFinal\ at $r=0.25$
+to \mixOneFinal\ at $r=1.0$ to \mixBlindFinal\ unbounded---ratio control
+alone rescues \mixRescueGain\ of the lost performance---and the larger
+capacity crashes harder at every finite ratio. A naive cap at $1\times$
+fails (balanced relabeling still collapses to $\sim$0.05) because capping
+against the \emph{growing} dataset still floods; the ratio must be held
+against the clean set. In state space the boundary vanishes: a
+low-capacity MLP shows no crash as $r$ grows, and the result transfers to
+\emph{contact-rich} MuJoCo dynamics (a real frictional push; scripted
+solve $\sim$70\% vs.\ $\sim$100\% kinematic), where unbounded relabeling
+(\contactBlindFinal) and ratio-capped relabeling (\contactMixFinal) are
+statistically indistinguishable---the MLP cannot memorize its failure
+distribution, so relabeled failures force it to generalize. The flood
+boundary is therefore a \emph{capacity} phenomenon, and \texttt{relabel\_adaptive}
+---a closed-loop curator that halves its ratio when held-out success
+regresses and grows it otherwise---converges to $r \approx 0.25$--$0.4$
+on the CNN, inside the stable region, without knowing capacity. The
+flywheel report is the sensor this controller reads; curation becomes a
+feedback-control problem rather than a fixed rule.
 
 \begin{figure}[t]
 \centering
@@ -380,6 +425,20 @@ $\rightarrow$ \visionRelabelFinal); curated relabeling degrades far less
 \label{fig:vision}
 \end{figure}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../results/figs/fig_phase_diagram.png}
+\caption{The flood boundary (Result 9). Final held-out success vs.\ the
+relabeled:clean mixing ratio (log axis; ``unbounded'' is blind
+relabeling). \textbf{a}, Perception (CNN): monotone collapse as the ratio
+grows---ratio control rescues \mixRescueGain\ of the lost performance
+(\mixBlindFinal\ $\rightarrow$ \mixRescueFinal), and the larger capacity
+crashes harder. \textbf{b--c}, Kinematic and contact-rich MLP:
+flood-robust at every ratio (\contactBlindFinal\ unbounded vs.\
+\contactMixFinal\ capped).}
+\label{fig:phase}
+\end{figure}
+
 \section{Discussion}
 \textbf{Why relabeling, not success, spins the wheel.} Behavior cloning
 fails because of compounding error: the policy drifts off the expert
@@ -418,10 +477,12 @@ ingestion is the right rule only when labels are free and perfect;
 curation is the right rule in the cost regime industrial cells actually
 face.
 
-\textbf{Limitations.} The task is a 2-D kinematic push; there is no
-sim2real gap or embodiment, and the visual observations are renders, not
-camera images. The policies are small (an MLP and a toy CNN), not
-foundation models. \numSeeds\ seeds bound the statistical power, and the
+\textbf{Limitations.} The task is a planar push---now in both a kinematic
+and a contact-rich MuJoCo model---but there is no sim2real gap or
+embodiment, and the visual observations are renders, not camera images.
+The policies are small (an MLP and a toy CNN), not foundation models, and
+the phase diagram's absolute numbers are small-seed measurements: the
+\emph{ordering}, not the magnitude, is the claim. \numSeeds\ seeds bound the statistical power, and the
 difficulty ablation uses a shorter horizon than the main study. None of
 these threaten the qualitative conclusions, which are about
 \emph{relative} behavior of ingestion rules under identical conditions,
@@ -441,7 +502,10 @@ We built the smallest faithful data flywheel and measured the one variable
 that decides whether it compounds. Self-generated data plateaus; oracle
 relabeling more than quadruples success; curation changes the cost curve
 (half the labels for most of the gain) and damps the damage of noisy
-labels; the effect survives task difficulty. The framework, results, and
+labels; the effect survives task difficulty and contact-rich dynamics.
+The loop's stability is a \emph{mixing-ratio control} problem with a
+measured capacity boundary and a closed-loop curator that respects it. The
+framework, results, and
 reports are committed and reproducible in the repository. Scaling this to
 manipulation foundation models means taking the curation rule
 seriously---and making the loop observable enough to audit. We intend the
