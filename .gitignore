@@ -22,3 +22,6 @@ kaggle_out/
 kaggle_pull/
 kaggle_payload/
 .kaggle_output/
+
+.venv-contact/
+MUJOCO_LOG.TXT
