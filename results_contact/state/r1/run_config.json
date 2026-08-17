@@ -1,0 +1,27 @@
+{
+  "config": {
+    "seed_demos": 40,
+    "expert_noise": 0.12,
+    "collect_per_iter": 30,
+    "eval_starts": 60,
+    "iterations": 4,
+    "seeds": 2,
+    "epochs": 120,
+    "lr": 0.001,
+    "hidden": 96,
+    "horizon": 70,
+    "seed": 0,
+    "oracle_noise": 0.0,
+    "success_radius": 0.07,
+    "target_ring": [
+      0.08,
+      0.18
+    ],
+    "strategies": [
+      "relabel_mix"
+    ],
+    "obs_mode": "state",
+    "img_size": 64
+  },
+  "cell": "cap96/mix1"
+}

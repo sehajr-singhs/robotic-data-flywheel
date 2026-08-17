@@ -1,0 +1,94 @@
+{
+  "success_rate_mean": [
+    0.5083,
+    0.5667,
+    0.5167,
+    0.575,
+    0.5333
+  ],
+  "success_rate_std": [
+    0.0417,
+    0.0167,
+    0.0333,
+    0.0083,
+    0.0
+  ],
+  "success_rate_seeds": [
+    [
+      0.4667,
+      0.5833,
+      0.4833,
+      0.5833,
+      0.5333
+    ],
+    [
+      0.55,
+      0.55,
+      0.55,
+      0.5667,
+      0.5333
+    ]
+  ],
+  "curation_log": [
+    {
+      "iteration": 1,
+      "n_rollouts": 30,
+      "n_success": 18,
+      "n_curated": 30,
+      "n_relabeled": 30,
+      "oracle_queries": 1494,
+      "dataset_frames": 3311,
+      "n_clean_frames": 1817,
+      "n_relabeled_frames": 1494,
+      "mix_ratio": 0.8222344523940561,
+      "rollout_success_rate": 0.6,
+      "controller_ratio": 1.0,
+      "train_mse": 0.03483434227513873
+    },
+    {
+      "iteration": 2,
+      "n_rollouts": 30,
+      "n_success": 17,
+      "n_curated": 30,
+      "n_relabeled": 30,
+      "oracle_queries": 1328,
+      "dataset_frames": 4491,
+      "n_clean_frames": 1817,
+      "n_relabeled_frames": 2674,
+      "mix_ratio": 1.4716565767749037,
+      "rollout_success_rate": 0.5666666666666667,
+      "controller_ratio": 1.5,
+      "train_mse": 0.027797177751069345
+    },
+    {
+      "iteration": 3,
+      "n_rollouts": 30,
+      "n_success": 22,
+      "n_curated": 30,
+      "n_relabeled": 30,
+      "oracle_queries": 1269,
+      "dataset_frames": 3156,
+      "n_clean_frames": 1817,
+      "n_relabeled_frames": 1339,
+      "mix_ratio": 0.7369290038525041,
+      "rollout_success_rate": 0.7333333333333333,
+      "controller_ratio": 0.75,
+      "train_mse": 0.024386010440556126
+    },
+    {
+      "iteration": 4,
+      "n_rollouts": 30,
+      "n_success": 11,
+      "n_curated": 30,
+      "n_relabeled": 30,
+      "oracle_queries": 1644,
+      "dataset_frames": 3840,
+      "n_clean_frames": 1817,
+      "n_relabeled_frames": 2023,
+      "mix_ratio": 1.1133736929003852,
+      "rollout_success_rate": 0.36666666666666664,
+      "controller_ratio": 1.125,
+      "train_mse": 0.03532242772345939
+    }
+  ]
+}
