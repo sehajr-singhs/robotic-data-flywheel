@@ -41,12 +41,15 @@ for tar in glob.glob("/kaggle/input/**/*.tar", recursive=True):
     print("extracting", tar, flush=True)
     with tarfile.open(tar) as t:
         t.extractall(pkg)
-whls = glob.glob(str(pkg / "**" / "wheels" / "*.whl"), recursive=True) or \
-    glob.glob("/kaggle/input/**/wheels/*.whl", recursive=True)
+whls = sorted(glob.glob(str(pkg / "**" / "wheels" / "*.whl"), recursive=True) or
+              glob.glob("/kaggle/input/**/wheels/*.whl", recursive=True))
 if whls:
-    print("installing mujoco from", whls[0], flush=True)
-    subprocess.run([sys.executable, "-m", "pip", "install", "-q",
-                    "--no-index", whls[0]], check=True)
+    # --no-deps: the image has numpy; glfw is only needed for the interactive
+    # viewer, not for import or the EGL renderer. Install each wheel we ship.
+    for w in whls:
+        print("installing", w, flush=True)
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q",
+                        "--no-deps", w], check=True)
 else:
     print("installing mujoco from PyPI ...", flush=True)
     subprocess.run([sys.executable, "-m", "pip", "install", "-q", "mujoco"],
